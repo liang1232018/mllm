@@ -3,15 +3,32 @@
 #include "CPUKVCacheNPU.hpp"
 #include "ParamLoader.hpp"
 #include "Types.hpp"
+#include <cstdint>
 
 namespace mllm {
+
+#define KVCache_TYPE_8
+
 CPUKVCacheNPU::CPUKVCacheNPU(Backend *bn, string opName, int n_rep, int cache_max, int threadCount) :
     thread_count(threadCount),
     Op(bn, opName) {
     cache_.setBackend(bn);
 
-    // TODO: Chaning it to FP16
-    cache_.setDtype(MLLM_TYPE_F16);
+    switch (KVCache_TYPE) {
+    case 16: {
+        cache_.setDtype(MLLM_TYPE_F16);
+        break;
+    }
+    case 8: {
+        if (opName.find("k_cache") != std::string::npos) {
+            cache_.setDtype(MLLM_TYPE_I8);
+        } else { // v_cache
+            cache_.setDtype(MLLM_TYPE_F16);
+        }
+        break;
+    }
+    }
+
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
 }
@@ -64,6 +81,8 @@ ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<share
     int input_seq = inputs[0]->sequence();
     int cache_seq_len_old = cache_seq_len_;
     cache_seq_len_ += inputs[0]->sequence();
+
+    std::cout << "---------KVcache Begin---------" << std::endl;
 
     if (isDecoding) {
         // Group Query Attention
@@ -140,11 +159,28 @@ ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<share
                                 inputs[0]->ptrAt<mllm_fp16_t>(b, h, seq, 0);
                             auto dest_ptr = cache_.ptrAt<mllm_fp16_t>(b, cache_head, cache_seq_len_old + seq, 0);
                             memcpy(dest_ptr, src_ptr, inputs[0]->dimension() * sizeof(mllm_fp16_t));
+                        } else if (cache_.dtype() == MLLM_TYPE_I8) {
+                            auto src_ptr =
+                                inputs[0]->ptrAt<int8_t>(b, h, seq, 0);
+                            auto dest_ptr = cache_.ptrAt<int8_t>(b, cache_head, cache_seq_len_old + seq, 0);
+                            memcpy(dest_ptr, src_ptr, inputs[0]->dimension() * sizeof(int8_t));
                         }
                     }
                 }
             }
         }
+
+        std::cout << "kvcache: " << name() << " BSHD" << std::endl;
+        int8_t *data = cache_.ptrAt<int8_t>(0,0,0,0);
+        for(int i = 0; i < 30; ++i) {
+            std::cout << (int)data[i] << " ";
+        }
+        std::cout << std::endl;
+        std::cout << outputs[0]->name() << std::endl;
+        for (int i = 0; i < 30; ++i) {
+            std::cout << (int)outputs[0]->dataAt<int8_t>(0,0,0,i) << " ";
+        }
+        std::cout << std::endl;
     } else if (cache_.ctype() == BHDS) {
         for (int b = 0; b < cache_.batch(); ++b) {
             for (int h = 0; h < inputs[0]->head(); ++h) {
@@ -162,14 +198,24 @@ ErrorCode CPUKVCacheNPU::execute(vector<shared_ptr<Tensor>> inputs, vector<share
                             auto dest_ptr =
                                 cache_.ptrAt<mllm_fp16_t>(b, cache_head, cache_seq_len_old, d);
                             memcpy(dest_ptr, src_ptr, inputs[0]->sequence() * sizeof(mllm_fp16_t));
+                        } else if (cache_.dtype() == MLLM_TYPE_I8) {
+                            auto src_ptr =
+                                inputs[0]->ptrAt<int8_t>(b, h, 0, d);
+                            auto dest_ptr = cache_.ptrAt<int8_t>(b, cache_head, cache_seq_len_old, d);
+                            memcpy(dest_ptr, src_ptr, inputs[0]->dimension() * sizeof(int8_t));
                         }
                     }
                 }
             }
         }
+
+        std::cout << "kvcache: " << name() << " BHDS" << std::endl;
     } else {
         std::cout << "ERROR Ctype in KVCcache;" << std::endl;
     }
+
+    std::cout << "---------kvcache finish------------" << std::endl;
+    outputs[0]->i8_scale = inputs[0]->i8_scale;
 
     return Op::execute(inputs, outputs);
 }
@@ -203,6 +249,7 @@ ErrorCode CPUKVCacheNPU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
         outputs[0]->deepCopyFrom(cache_, false, {0, 0, cache_seq_len_ % cache_limit_ + 1, 0});
     }
 
+    // in qnn prefilling, the input dtype is set manually, rather than deepCopyFrom
     inputs[0]->setDtype(cache_.dtype());
     return MLLM_NO_ERROR;
 }

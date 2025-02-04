@@ -111,6 +111,9 @@ int main(int argc, char **argv) {
             Module::isFirstChunk = false;
         }
 
+        std::cout << "--------------" << std::endl;
+        exit(0);
+
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();

@@ -513,7 +513,7 @@ public:
     QWenModel_NPU() = default;
     QWenModel_NPU(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         // blocks = List<QwenNPU_CPUDecoder>(1, config, names, base_name);
-        blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(24, config, names, chunk_size, base_name);
+        blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(1, config, names, chunk_size, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 

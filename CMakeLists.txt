@@ -23,6 +23,8 @@ else()
     add_compile_options(-Wno-deprecated-declarations)
 endif()
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES ${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES})
+
 add_compile_options(-Wno-gnu-string-literal-operator-template)
 
 if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm" OR ${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")

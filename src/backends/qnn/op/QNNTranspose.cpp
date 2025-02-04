@@ -55,6 +55,9 @@ ErrorCode QNNTranspose::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     if (inputs[0]->dtype() == MLLM_TYPE_F16) {
         type = QNN_DATATYPE_FLOAT_16;
         outputs[0]->setDtype(MLLM_TYPE_F16);
+    } else if (inputs[0]->dtype() == MLLM_TYPE_I8) {
+        type = QNN_DATATYPE_SFIXED_POINT_8;
+        outputs[0]->setDtype(MLLM_TYPE_I8);
     }
     
     auto outVTransposeName = outputs[0]->name();

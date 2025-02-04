@@ -7,6 +7,7 @@
 #include "VecDotType.hpp"
 #include "SGEMM.hpp"
 #include <cassert>
+#include <cstdint>
 
 #ifdef __ARM_NEON
 #include <arm_neon.h>
@@ -267,24 +268,64 @@ ErrorCode mat_mul(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Te
 }
 
 ErrorCode mat_mul_i8(Tensor *src0, Tensor *src1, Tensor *dst, bool support_bias, Tensor *bias, bool transpose0, bool transpose1, int thread_count, float scale1, float scale2) {
+    std::cout << "---------- in matmuli8" << std::endl;
+    std::cout << "src0 scale: " << src0->i8_scale << std::endl;
+    std::cout << "src1 scale: " << src1->i8_scale << std::endl;
+
     if (support_bias) {
         std::cout << "Not support bias in mat_mul_i8" << std::endl;
         abort();
     }
 
-    if (!transpose1) {
-        std::cout << "Not support transpose1==false in mat_mul_i8" << std::endl;
-        abort();
-    }
-
+    if (src0->dtype() == MLLM_TYPE_F32) {
+        std::cout << "M:" << src0->sequence() << " K:" << src0->dimension() << " N:" << src1->dimension() << std::endl;
 #ifdef __ARM_NEON
-    armv8::qt8_qt8_fp32_gemm_sdot_omp(src0->rawHostPtr(), src1->rawHostPtr(), dst->rawHostPtr(), src0->sequence(), src1->sequence(), src0->dimension(),
-                                      src0->i8_scale, src1->i8_scale, transpose1);
-#else
-    std::cout << "mat_mul_i8 is only supported in armv8.2+" << std::endl;
-    abort();
-#endif
+        auto tmp_in = std::make_shared<Tensor>(src0->backend());
+        auto b = src0->batch();
+        auto h = src0->head();
+        auto d = src0->dimension();
+        auto s = src0->sequence();
+        tmp_in->chls() = src0->chls();
+        tmp_in->setCtype(src0->ctype());
+        tmp_in->reshape(b, h, s, d);
+        tmp_in->setDtype(MLLM_TYPE_I8);
+        tmp_in->alloc();
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int b = 0; b < tmp_in->batch(); b++) {
+            for (int h = 0; h < tmp_in->head(); h++) {
+                for (int s = 0; s < tmp_in->sequence(); s++) {
+                    quantize_row_i8(src0->hostPtr<float>() + src0->offset(b, h, s, 0),
+                                    (char *)tmp_in->rawHostPtr()
+                                        + tmp_in->offset(b, h, s, 0),
+                                    src0->dimension(), src0->i8_scale);
+                }
+            }
+        }
 
+        for (int b = 0; b < src0->batch(); b++) {
+            for (int h = 0; h < src0->head(); h++) {
+                void* m1 = tmp_in->ptrAt<int8_t>(b, h, 0, 0);
+                void* m2 = src1->ptrAt<int8_t>(b, h, 0, 0);
+                void* m3 = dst->ptrAt<float>(b, h, 0, 0);
+                armv8::qt8_qt8_fp32_gemm_sdot_omp(m1, m2, m3, src0->sequence(), src1->dimension(), src0->dimension(),
+                                                  src0->i8_scale, src1->i8_scale, true);
+            }
+        }
+
+#else
+        std::cout << "mat_mul_i8 is only supported in armv8.2+" << std::endl;
+        abort();
+#endif
+    } else {
+#ifdef __ARM_NEON
+        armv8::qt8_qt8_fp32_gemm_sdot_omp(src0->rawHostPtr(), src1->rawHostPtr(), dst->rawHostPtr(), src0->sequence(), src1->sequence(), src0->dimension(),
+                                          src0->i8_scale, src1->i8_scale, transpose1);
+#else
+        std::cout << "mat_mul_i8 is only supported in armv8.2+" << std::endl;
+        abort();
+#endif
+    }
+    std::cout << "---------- in matmuli8" << std::endl;
     return MLLM_NO_ERROR;
 }
 

@@ -249,6 +249,7 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     outputScale_.reshape(1, 1, 1, 1);
     outputScale_.setDtype(MLLM_TYPE_F32);
     outputScale_.alloc();
+    std::cout << "outputScale_ name: " << outputScale_.name() << std::endl;
     loader.load(&outputScale_);
 
     inputScale_.setName(name() + ".input_scale");

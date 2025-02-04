@@ -4,6 +4,7 @@
 #include "Types.hpp"
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <iostream>
 #include "backends/cpu/quantize/QuantizeQ8.hpp"
 
@@ -424,6 +425,10 @@ void CPURoPE::rope_mla(shared_ptr<Tensor> input, shared_ptr<Tensor> output) {
 }
 // TODO: Q8_0 KVCache can not use!!
 ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    std::cout << "input dtype in: " << name_ << inputs[0]->dtype() << std::endl;
+    std::cout << "output dtype in: " << name_ << outputs[0]->dtype() << std::endl;
+    outputs[0]->i8_scale = roundf(outputScale_.dataAt<float>(0, 0, 0, 0) / 127.0 * 100000) / 100000;
+    std::cout << "set scale: "  << outputs[0]->i8_scale << std::endl;
     if (outputs[0]->dtype() == MLLM_TYPE_Q8_0) {
         auto tmp_out = std::make_shared<Tensor>(outputs[0]->backend());
         // tmp_out->setBackend(outputs[0]->backend());
@@ -448,6 +453,45 @@ ErrorCode CPURoPE::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
                 }
             }
         }
+        return MLLM_NO_ERROR;
+    } else if (outputs[0]->dtype() == MLLM_TYPE_I8) {
+        std::cout << "------RoPE Begin--------" << name() << std::endl;
+        auto tmp_out = std::make_shared<Tensor>(outputs[0]->backend());
+        auto b = outputs[0]->batch();
+        auto h = outputs[0]->head();
+        auto d = outputs[0]->dimension();
+        auto s = outputs[0]->sequence();
+        tmp_out->chls() = outputs[0]->chls();
+        tmp_out->setCtype(outputs[0]->ctype());
+        tmp_out->reshape(b, h, s, d);
+        tmp_out->setDtype(MLLM_TYPE_F32);
+        tmp_out->alloc();
+        doExecute(inputs, {tmp_out});
+        std::cout << "------RoPE execute end--------" << std::endl;
+#pragma omp parallel for collapse(3) num_threads(thread_count)
+        for (int b = 0; b < tmp_out->batch(); b++) {
+            for (int h = 0; h < tmp_out->head(); h++) {
+                for (int s = 0; s < tmp_out->sequence(); s++) {
+                    quantize_row_i8(tmp_out->hostPtr<float>() + tmp_out->offset(b, h, s, 0),
+                                    (char *)outputs[0]->rawHostPtr()
+                                        + outputs[0]->offset(b, h, s, 0),
+                                    tmp_out->dimension(), outputs[0]->i8_scale);
+                }
+            }
+        }
+
+        std::cout << "before quantize" << std::endl;
+        for (int i = 0; i < 30; ++i) {
+            std::cout << (float)tmp_out->dataAt<float>(0, 0, 0, i) << " ";
+        }
+
+        std::cout << "\nafter quantize scale:" << roundf(outputScale_.dataAt<float>(0, 0, 0, 0) / 127.0 * 100000) / 100000 << std::endl;
+        outputs[0]->printShape();
+        for (int i = 0; i < 30; ++i) {
+            std::cout << (int)outputs[0]->dataAt<int8_t>(0,0,0,i) << " ";
+        }
+
+        std::cout << "\n------RoPE Finish--------" << std::endl;
         return MLLM_NO_ERROR;
     } else {
         return doExecute(inputs, outputs);
@@ -492,6 +536,36 @@ ErrorCode CPURoPE::doExecute(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
 }
 
 ErrorCode CPURoPE::load(AbstructLoader &loader) {
+    if (name_.find("k_rope") != std::string::npos) {
+        auto opName = name();
+        outputScale_.reshape(1, 1, 1, 1);
+        outputScale_.setBackend(this->backend_);
+        outputScale_.setDtype(MLLM_TYPE_F32);
+        outputScale_.alloc();
+        // change "model.layers.0.self_attn.k_rope" to "model.layers.0.self_attn.k_proj.output_scale"
+        std::string wordToRemove = "k_rope";
+        std::string wordToReplace = "k_proj.output_scale";
+        size_t pos = opName.find(wordToRemove);
+        opName.replace(pos, wordToRemove.length(), wordToReplace);
+        outputScale_.setName(opName);
+        loader.load(&outputScale_);
+        std::cout << "load scale in rope:" << opName << ": " << outputScale_.dataAt<float>(0, 0, 0, 0) << std::endl;
+    } else if (name_.find("q_rope") != std::string::npos) {
+        auto opName = name();
+        outputScale_.reshape(1, 1, 1, 1);
+        outputScale_.setBackend(this->backend_);
+        outputScale_.setDtype(MLLM_TYPE_F32);
+        outputScale_.alloc();
+        // change "model.layers.0.self_attn.k_rope" to "model.layers.0.self_attn.k_proj.output_scale"
+        std::string wordToRemove = "q_rope";
+        std::string wordToReplace = "q_proj.output_scale";
+        size_t pos = opName.find(wordToRemove);
+        opName.replace(pos, wordToRemove.length(), wordToReplace);
+        outputScale_.setName(opName);
+        loader.load(&outputScale_);
+        std::cout << "load scale in rope:" << opName << ": " << outputScale_.dataAt<float>(0, 0, 0, 0) << std::endl;
+    }
+
     return Op::load(loader);
 }
 ErrorCode CPURoPE::free(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

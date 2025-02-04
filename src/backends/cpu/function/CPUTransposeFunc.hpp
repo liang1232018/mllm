@@ -57,6 +57,9 @@ public:
         // }
     }
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
+        std::cout << "input: " << inputs[0]->name() << " ctype: " << inputs[0]->ctype() << std::endl;
+        std::cout << "input: " << outputs[0]->name() << " ctype: " << outputs[0]->ctype() << std::endl;
+        outputs[0]->i8_scale = inputs[0]->i8_scale;
     }
 };
 } // namespace mllm

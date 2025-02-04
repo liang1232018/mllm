@@ -47,6 +47,8 @@ private:
     void clearCache() override {
         h_cnt_ = 0;
     }
+
+    Tensor outputScale_;
 };
 
 class CPURoPECreator : public CPUBackend::Creator {

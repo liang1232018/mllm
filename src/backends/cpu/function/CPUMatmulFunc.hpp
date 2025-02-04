@@ -9,6 +9,7 @@
 #include "Types.hpp"
 #include "../compute/Matmul.hpp"
 #include <cassert>
+#include <cstdint>
 
 namespace mllm {
 class Tensor;
@@ -73,8 +74,44 @@ public:
     }
     void execute(vector<Tensor *> outputs, vector<Tensor *> inputs, vector<float> args) override {
         bool isSame = std::equal(inputs[0]->chls().begin(), inputs[0]->chls().end(), inputs[1]->chls().begin());
+
+
+        std::cout << "------matmul Begin--------" << std::endl;
+        std::cout << "input 0:" << inputs[0]->name() << " dtype: " << inputs[0]->dtype() << " ctype: " << inputs[0]->ctype() << std::endl;
+        inputs[0]->printShape();
+        // print first 10 of input0
+        for (int i = 0; i < 30; ++i) {
+            std::cout << inputs[0]->dataAt<float>(0, 0, 0, i) << " ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "\ninput 1:" << inputs[1]->name() << " " << inputs[1]->dtype() << " ctype: " << inputs[1]->ctype() << std::endl;
+        inputs[1]->printShape();
+        // print first 10 of input1
+        for (int i = 0; i < 30; ++i) {
+            std::cout << (int)inputs[1]->dataAt<int8_t>(0, 0, 0, i) << " ";
+        }
+        auto data = inputs[1]->ptrAt<int8_t>(0, 0, 0, 0);
+        for(int i = 0; i < 30; ++i) {
+            std::cout << (int)data[i] << " ";
+        }
+        std::cout << std::endl;
+
         assert(inputs[0]->dtype() == MLLM_TYPE_F32);
-        mat_mul(inputs[0], inputs[1], outputs[0], false, nullptr, false, isSame, CPUBackend::cpu_threads);
+
+        if (inputs[1]->dtype() == MLLM_TYPE_I8) {
+            mat_mul_i8(inputs[0], inputs[1], outputs[0], false, nullptr, false, isSame, CPUBackend::cpu_threads);
+        } else {
+            mat_mul(inputs[0], inputs[1], outputs[0], false, nullptr, false, isSame, CPUBackend::cpu_threads);
+        }
+        
+        std::cout << "matmul output: " << outputs[0]->name() << std::endl;
+        // print first 10 of output
+        for (int i = 0; i < 30; ++i) {
+            std::cout << outputs[0]->dataAt<float>(0, 0, 0, i) << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "------matmul END--------" << std::endl;
     }
 };
 } // namespace mllm
