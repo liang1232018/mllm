@@ -33,6 +33,8 @@
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
+#include "op/QNNSubGraphFinalize.hpp"
+#include "op/QNNSubGraphStart.hpp"
 #include "op/QNNView.hpp"
 #include "op/QNNReLU.hpp"
 #include "op/QNNQuantize.hpp"
@@ -85,6 +87,8 @@ void QNNBackend::registerOps() {
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
     addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));
     addCreator(SUPERSILU, (QNNBackend::Creator *)(new QNNSuperSiLUCreator()));
+    addCreator(SUBGRAPHSTART, (QNNBackend::Creator *)(new QNNSubGraphStartCreator()));
+    addCreator(SUBGRAPHFINALIZE, (QNNBackend::Creator *)(new QNNSubGraphFinalizeCreator()));
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
@@ -375,9 +379,9 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 }
 
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-    currentInputBuffers = &inputBufferMap[graphName];
-    currentOutputBuffers = &outputBufferMap[graphName];
-    qnnModelIndex_ = qnnModelIndexMap_[graphName];
+    // currentInputBuffers = &inputBufferMap[graphName];
+    // currentOutputBuffers = &outputBufferMap[graphName];
+    // qnnModelIndex_ = qnnModelIndexMap_[graphName];
     PRINT_MEMORY_USAGE("before graph finilize")
     auto status = graphFinilize();
     PRINT_MEMORY_USAGE("after graph finilize")
@@ -411,11 +415,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     for (int i = 0; i < graphInfo->numInputTensors; i++) {
         qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
 #ifdef DEBUGPRINT
-        if (i < inputs.size()) {
-            std::cout << "\nregistered input tensor: " << inputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
-        } else {
-            std::cout << "\n registered op added input" << std::endl;
-        }
+        std::cout << "\nregistered input tensor backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
         std::cout << "qnn input tensor name: " << qnnInputs[i].v1.name << std::endl;
         std::cout << "qnn input tensor scale: " << qnnInputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
@@ -423,11 +423,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     for (int i = 0; i < graphInfo->numOutputTensors; i++) {
         qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
 #ifdef DEBUGPRINT
-        if (i < outputs.size()) {
-            std::cout << "\nregistered output tensor: " << outputs[i]->hostPtr<void>() << " backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
-        } else {
-            std::cout << "\n registered op added output" << std::endl;
-        }
+        std::cout << "\nregistered output tensor backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
         std::cout << "qnn output tensor name: " << qnnOutputs[i].v1.name << std::endl;
         std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif

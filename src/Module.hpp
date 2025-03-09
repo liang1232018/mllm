@@ -193,20 +193,25 @@ public:
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
-        // set static tmp_device to device_ to init layers' op
-        auto previoud_device = tmp_device;
-        Module::tmp_device = device_;
+        // ---------------- TODO: quote this for QNN graph merging execute, move the offload to SubGraphBegin & SubGraphFinalize
+        // // set static tmp_device to device_ to init layers' op
+        // auto previoud_device = tmp_device;
+        // Module::tmp_device = device_;
+        // ----------------
+
         // Module Loading
         if (llm_model_ptr && llm_model_ptr->doLoad) {
             auto outputs = Forward(inputs, anyArgs);
-            // for inner module, set output tensors to GRAPH_OUTPUT
-            if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
-                for (auto &output : outputs) {
-                    inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
-                }
-            }
+            // ---------------- TODO: quote this for QNN graph merging execute, move the offload to SubGraphBegin & SubGraphFinalize
+            // // for inner module, set output tensors to GRAPH_OUTPUT
+            // if (inputs[0].ttype() != TensorType::INPUT_TENSOR) { // XPUs' module should not be the outermost input tensor
+            //     for (auto &output : outputs) {
+            //         inputs[0].module()->activation_tensors[output.name()]->setTtype(GRAPH_OUTPUT);
+            //     }
+            // }
             // set Module::tmp_device to previous device
-            Module::tmp_device = previoud_device;
+            // Module::tmp_device = previoud_device;
+            // ----------------
             return outputs;
         }
         // Module setUp & execute

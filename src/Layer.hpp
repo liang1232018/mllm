@@ -16,6 +16,7 @@
 #include "ParamLoader.hpp"
 #include "Backend.hpp"
 #include "Trace.hpp"
+#include "Types.hpp"
 
 #include <Module.hpp>
 
@@ -185,6 +186,11 @@ protected:
 #else
                 op_ = backend_->opCreate(param_, name_);
 #endif
+            }
+            if(param_["type"] == SUBGRAPHFINALIZE) {
+                for(auto& input : inputs) {
+                    activation_tensors[input.name()]->setTtype(GRAPH_OUTPUT);
+                }
             }
             if (module->doLoad) {
                 op_->load(*module->loader);
@@ -1002,18 +1008,6 @@ public:
     }
 };
 
-class SubgraphStart final : public Layer {
-public:
-    explicit SubgraphStart(const std::string &name) {
-        init(name, OpType::SUBGRAPHSTART);
-    }
-
-    Tensor &operator()(Tensor &input) {
-        auto ts = run({input}, 1);
-        return ts[0].get();
-    }
-};
-
 class Transpose final : public Layer {
 public:
     explicit Transpose(std::vector<int> perm, std::string name) {
@@ -1029,14 +1023,30 @@ public:
     }
 };
 
+class SubgraphStart final : public Layer {
+public:
+    SubgraphStart() = default;
+    explicit SubgraphStart(const std::string &name) {
+        init(name, OpType::SUBGRAPHSTART);
+    }
+
+    Tensor &operator()(vector<Tensor> inputs) {
+        Module::tmp_device = MLLM_QNN;
+        auto ts = run(inputs, 1);
+        return ts[0].get();
+    }
+};
+
 class SubgraphFinalize final : public Layer {
 public:
+    SubgraphFinalize() = default;
     explicit SubgraphFinalize(const std::string &name) {
         init(name, OpType::SUBGRAPHFINALIZE);
     }
 
-    Tensor &operator()(Tensor &input) {
-        auto ts = run({input}, 1);
+    Tensor &operator()(vector<Tensor> &inputs) {
+        auto ts = run(inputs, 1);
+        Module::tmp_device = MLLM_CPU;
         return ts[0].get();
     }
 };
