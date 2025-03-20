@@ -277,17 +277,25 @@ protected:
 #endif
         switch (Tensor::tensor_status) {
         case TENSOR_STATIC_INIT: {
+            if (!Module::isFirstChunk && backend_->type() == MLLM_QNN) {
+                break;
+            }
             op_->reshape(input_tensors, output_tensors);
             op_->setUp(input_tensors, output_tensors);
             break;
         }
         case TENSOR_STATIC_READY: {
+            if (!Module::isFirstChunk && backend_->type() == MLLM_QNN && param_["type"] != SUBGRAPHSTART) {
+                break;
+            }
             op_->execute(input_tensors, output_tensors);
             break;
         }
         case TENSOR_STATIC_TRACE : {
             if (backend_->type() == BackendType::MLLM_CPU) {
                 Tracer::addOp(op_, input_tensors, output_tensors);
+            } else if (param_["type"] == SUBGRAPHSTART) { // begin of QNN graph
+                Tracer::addModule(input_tensors, {}, op_->name());
             }
             break;
         }

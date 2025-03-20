@@ -1,4 +1,5 @@
 #include "Module.hpp"
+#include "QNNBackend.hpp"
 #include "Types.hpp"
 #include <memory>
 #include "backends/cpu/CPUBackend.hpp"
@@ -27,6 +28,8 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     int chunk_size = cmdParser.get<int>("chunk");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
+
+    Module::initBackend(MLLM_QNN);
 
     auto tokenizer = SmolLMTokenizer(vocab_path, merge_path);
     PhoneLMConfig config(tokens_limit, "1.5B");
@@ -57,8 +60,12 @@ int main(int argc, char **argv) {
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
     // turn on the multi-chunk prefilling
     Module::isMultiChunkPrefilling = true;
+
     // warmup END
     std::cout << "Warmup finished." << std::endl;
+    if (!std::filesystem::exists("qnn_context.bin")) {
+        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
+    }
 
     vector<string> in_strs = {
         "Give me a short introduction to large language model.",

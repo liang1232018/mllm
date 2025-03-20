@@ -1,8 +1,10 @@
+#include "QNNBackend.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
 #include "models/qwen/modeling_qwen_npu.hpp"
 #include "models/qwen/modeling_qwen.hpp"
+#include "models/qwen/modeling_qwen_npu_v2.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
 #include "processor/PostProcess.hpp"
 
@@ -26,9 +28,11 @@ int main(int argc, char **argv) {
     const int chunk_size = 128;
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
+    Module::initBackend(MLLM_QNN);
+
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
-    auto model = QWenForCausalLM_NPU(config, chunk_size);
+    auto model = v2::QWenForCausalLM_NPU(config, chunk_size);
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);
     decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
@@ -57,6 +61,10 @@ int main(int argc, char **argv) {
     Module::isMultiChunkPrefilling = true;
     // warmup END
     std::cout << "Warmup finished." << std::endl;
+
+    if (!std::filesystem::exists("qnn_context.bin")) {
+        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
+    }
 
     vector<string> in_strs = {
         // " Give me a short introduction to large language model.",
