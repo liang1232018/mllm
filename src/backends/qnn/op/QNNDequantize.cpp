@@ -6,10 +6,11 @@
 #include <cassert>
 
 namespace mllm {
-QNNDequantize::QNNDequantize(Backend *bn, string opName, bool isNSHD, bool isFP32) :
+QNNDequantize::QNNDequantize(Backend *bn, string opName, bool isNSHD, bool isFP32, DataType type) :
     QNNCommonOp(bn, opName) {
     isNSHD_ = isNSHD;
     isFP32_ = isFP32;
+    activation_dtype_ = type;
     scale_.setBackend(bn);
 }
 
@@ -20,7 +21,6 @@ ErrorCode QNNDequantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 }
 
 ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-
     auto outName = outputs[0]->name();
     uint32_t dimensionsOutput[4];
 
@@ -37,7 +37,16 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     }
 
     float dequantScale = 0;
-    dequantScale = scale_.hostPtr<float>()[0] / 127.0;
+    switch (activation_dtype_) {
+    case MLLM_TYPE_I8:
+        dequantScale = scale_.hostPtr<float>()[0] / pow(2, 8) - 1;
+        break;
+    case MLLM_TYPE_I16:
+        dequantScale = scale_.hostPtr<float>()[0] / pow(2, 16) - 1;
+        break;
+    default:
+        return NOT_SUPPORT;
+    }
     dequantScale = roundf(dequantScale * 100000) / 100000;
 
     if (name().find("q_proj") != -1) {
@@ -47,6 +56,7 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     if (isFP32_) {
         uint32_t paramsDeQuantizeDimension[1] = {1};
         auto paramsDeQuantizeName = name() + "dequantize_params";
+        // TODO: add input op param
         vector<Qnn_Param_t> paramsDeQuantize = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "scale",
@@ -87,6 +97,7 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
         outputs[0]->setDtype(MLLM_TYPE_F16);
         uint32_t paramsDeQuantizeDimension[1] = {1};
         auto paramsDeQuantizeName = name() + "dequantize_params";
+        // TODO: add input op param
         vector<Qnn_Param_t> paramsDeQuantize = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "scale",

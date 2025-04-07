@@ -339,7 +339,57 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             }
             scaleTensor.setName(scaleName);
             loader->load(&scaleTensor);
-            scale = roundf(scaleTensor.hostPtr<float>()[0] / 127.0 * 100000) / 100000;
+            scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 8) - 1) * 100000) / 100000;
+            scaleTensor.free();
+
+            break;
+        }
+        case MLLM_TYPE_I16: {
+            data_type = QNN_DATATYPE_SFIXED_POINT_16;
+            quantizeDefined = QNN_DEFINITION_DEFINED;
+            quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
+
+            string scaleName = input->name();
+
+            std::string wordToRemove = "outtensor-";
+            int pos = scaleName.find(wordToRemove);
+            if (pos != -1) { // old frontend merge/split generated tensor
+                scaleName = scaleName.substr(wordToRemove.length());
+                wordToRemove = "or_split";
+                if (scaleName.find(wordToRemove) != -1) {
+                    pos = scaleName.find("or_split");
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // o
+                    scaleName += "o_proj.input_scale";
+                } else if (scaleName.find("ires_split") != -1) {
+                    pos = scaleName.find("ires_split");
+                    wordToRemove = "ires_split";
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // q
+                    scaleName += "q_proj.input_scale";
+                } else if (scaleName.find("fres_split") != -1) {
+                    pos = scaleName.find("fres_split");
+                    wordToRemove = "fres_split";
+                    // scaleName.erase(pos, wordToRemove.length());
+                    scaleName = scaleName.substr(0, pos);
+                    // fc1
+                    scaleName += "up_proj.input_scale";
+                }
+            } else { // new frontend no merge/split condition
+                std::string prefix = "out-", suffix = ".quantize";
+                if (input->name().find(prefix) != std::string::npos) {
+                    scaleName = input->name().substr(prefix.length());
+                }
+                if (scaleName.find(suffix) != std::string::npos) {
+                    scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
+                }
+                scaleName += ".input_scale";
+            }
+            scaleTensor.setName(scaleName);
+            loader->load(&scaleTensor);
+            scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 16) - 1) * 100000) / 100000;
             scaleTensor.free();
 
             break;
