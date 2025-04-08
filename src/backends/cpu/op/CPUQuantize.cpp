@@ -39,14 +39,15 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
     // quantScale = roundf(quantScale * 100000) / 100000;
     switch (activation_dtype_) {
     case MLLM_TYPE_I8:
-        quantScale = pow(2, 8) - 1;
+        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
         break;
     case MLLM_TYPE_I16:
-        quantScale = pow(2, 16) - 1;
+        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
         break;
     default:
         return NOT_SUPPORT;
     }
+    quantScale = roundf(quantScale * 100000) / 100000;
 
     auto src0 = inputs[0];
     auto out0 = outputs[0];

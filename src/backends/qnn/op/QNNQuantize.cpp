@@ -51,7 +51,7 @@ ErrorCode QNNQuantize::setUpI8(vector<shared_ptr<Tensor>> &inputs, vector<shared
     }
 
     float quantScale = 0;
-    quantScale = scale_.hostPtr<float>()[0] / pow(2, 8) - 1;
+    quantScale = scale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
     quantScale = roundf(quantScale * 100000) / 100000;
 
     uint32_t paramsQuantizeDimension[1] = {1};
@@ -114,7 +114,7 @@ ErrorCode QNNQuantize::setUpI16(vector<shared_ptr<Tensor>> &inputs, vector<share
     }
 
     float quantScale = 0;
-    quantScale = scale_.hostPtr<float>()[0] / pow(2, 16) - 1;
+    quantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
     quantScale = roundf(quantScale * 100000) / 100000;
 
     uint32_t paramsQuantizeDimension[1] = {1};

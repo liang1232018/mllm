@@ -37,8 +37,7 @@ private:
 class CPUQuantizeCreator : public CPUBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name, int threadCount) const {
-        DataType type = (DataType)op_param["dtype"];
-        return new CPUQuantize(bn, name, type, threadCount);
+        return new CPUQuantize(bn, name, (DataType)op_param["dtype"], threadCount);
     }
 };
 } // namespace mllm

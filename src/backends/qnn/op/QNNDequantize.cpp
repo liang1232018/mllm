@@ -39,10 +39,10 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     float dequantScale = 0;
     switch (activation_dtype_) {
     case MLLM_TYPE_I8:
-        dequantScale = scale_.hostPtr<float>()[0] / pow(2, 8) - 1;
+        dequantScale = scale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
         break;
     case MLLM_TYPE_I16:
-        dequantScale = scale_.hostPtr<float>()[0] / pow(2, 16) - 1;
+        dequantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
         break;
     default:
         return NOT_SUPPORT;
