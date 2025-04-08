@@ -23,7 +23,7 @@ private:
 class QNNQuantizeCreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        auto type = (DataType)op_param["type"];
+        auto type = (DataType)op_param["dtype"];
         return new QNNQuantize(bn, name, type, (bool)op_param["isNSHD"]);
     }
 };

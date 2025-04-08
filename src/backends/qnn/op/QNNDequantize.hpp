@@ -21,7 +21,7 @@ private:
 class QNNDequantizeCreator : public QNNBackend::Creator {
 public:
     virtual Op *create(OpParam op_param, Backend *bn, string name) const {
-        return new QNNDequantize(bn, name, (bool)op_param["isNSHD"], (DataType)op_param["isFP32"]);
+        return new QNNDequantize(bn, name, (bool)op_param["isNSHD"], (bool)op_param["isFP32"], (DataType)op_param["inType"]);
     }
 };
 

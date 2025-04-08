@@ -893,7 +893,7 @@ class Quantize final : public Layer {
 public:
     explicit Quantize(bool isNSHD, std::string name, DataType type = MLLM_TYPE_I8) {
         param_["isNSHD"] = (float)isNSHD;
-        param_["type"] = (float)type;
+        param_["dtype"] = (float)type;
         init(std::move(name), OpType::QUANTIZE);
     }
     Tensor &operator()(Tensor &input) {
