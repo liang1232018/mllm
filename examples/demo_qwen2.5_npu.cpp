@@ -53,6 +53,7 @@ int main(int argc, char **argv) {
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 1,
             .do_sample = false,
+
             .is_padding = true,
             .seq_before_padding = real_seq_length,
         };
@@ -81,6 +82,7 @@ int main(int argc, char **argv) {
             // call only once of switchDecodeTag
             if (!isSwitched) {
                 static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+
                 isSwitched = true;
             }
             auto out_string = tokenizer.detokenize({out_token});
