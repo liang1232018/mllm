@@ -16,7 +16,7 @@
 #include "QnnInterface.h"
 #include "QnnLog.h"
 #include "QnnModelPal.hpp"
-#include "WrapperUtils/QnnWrapperUtils.hpp"
+#include "../WrapperUtils/QnnWrapperUtils.hpp"
 
 namespace qnn_wrapper_api {
 
@@ -54,6 +54,8 @@ class QnnModel {
                           bool debug,
                           uint8_t doNodeValidations              = 1,
                           const QnnGraph_Config_t** graphConfigs = nullptr);
+
+  void setInitFromCache();
 
   /**
    * @brief A wrapper function to create a tensor inside class's context graph.
@@ -226,7 +228,7 @@ class QnnModel {
   bool m_debug = false;  // flag to indicate if requested graph is to be run in debug mode
   // (i.e. all intermediate tensors will be accessible to client)
   // flag to indicate whether all addNode calls need to be validated
-  bool m_doNodeValidations = true;
+  bool m_doNodeValidations = true, isFromCache = false;
 
   std::vector<Qnn_Tensor_t> m_modelInputTensors;
   std::vector<Qnn_Tensor_t> m_modelOutputTensors;
@@ -266,5 +268,4 @@ ModelError_t getSingleGraphInfoFromModel(QnnModel &model, GraphInfoPtr_t* graphI
  * @return Error code
  *
  */
-ModelError_t freeGraphsInfo(GraphInfoPtr_t** graphsInfo, uint32_t numGraphs);
 }  // namespace qnn_wrapper_api

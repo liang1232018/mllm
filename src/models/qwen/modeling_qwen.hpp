@@ -76,8 +76,8 @@ public:
         k_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "k_cache");
         v_cache = KVCache(num_key_value_groups, config.cache_limit, base_name + "v_cache");
         // mask = SlidingWindowMask(config.sliding_window, base_name + "mask");
-        mask = Causalmask(base_name + "mask");
-        softmax = Softmax(DIMENSION, base_name + "softmax");
+        // mask = Causalmask(base_name + "mask");
+        softmax = Softmax(DIMENSION, true, base_name + "softmax");
     }
 
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
@@ -102,7 +102,7 @@ public:
         auto atten_weight =
             Tensor::mm(query_states, key_states.transpose(Chl::SEQUENCE, Chl::DIMENSION))
             / std::sqrt(head_dim);
-        atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
+        // atten_weight = mask(atten_weight, k_cache.getCacheSeqLen());
         atten_weight = softmax(atten_weight, k_cache.getCacheSeqLen());
 
         // attention output
@@ -115,6 +115,9 @@ public:
     vector<KVCache *> get_cache() {
         return {&k_cache, &v_cache};
     }
+    vector<RoPE *> get_rope() {
+        return {&q_rope, &k_rope};
+    }
 
 private:
     int hidden_size;
@@ -126,11 +129,11 @@ private:
     Layer k_proj;
     Layer v_proj;
     Layer o_proj;
-    Layer q_rope;
-    Layer k_rope;
+    RoPE q_rope;
+    RoPE k_rope;
     KVCache k_cache;
     KVCache v_cache;
-    Causalmask mask;
+    // Causalmask mask;
     Softmax softmax;
 };
 
@@ -187,8 +190,10 @@ public:
 
     void clear_kvcache() override {
         for (auto &block : blocks) {
-            auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) { cache->clearCache(); }
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
         }
     }
 

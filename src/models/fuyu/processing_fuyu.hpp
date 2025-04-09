@@ -6,6 +6,7 @@
 #define TOKENIZATION_FUYU_HPP
 
 #include <vector>
+#include "Log.h"
 #include "Tensor.hpp"
 #include <utility>
 // #include "processor/FuyuPreProcess.hpp"
@@ -89,7 +90,7 @@ class FuyuProcessor final : public PreProcessor {
         if (tokenizer_->getTokenId("<0x04>", answer_start_token)) {
             text_ids.push_back(answer_start_token);
         } else {
-            std::cerr << "ANSWER_START token not found in vocab file." << std::endl;
+            MLLM_LOG_ERROR_STREAM << "ANSWER_START token not found in vocab file." << std::endl;
         }
         text_ids_.push_back(text_ids);
         text_lengths_.push_back(text_ids.size());
@@ -221,8 +222,8 @@ class FuyuProcessor final : public PreProcessor {
     }
 
 public:
-    explicit FuyuProcessor(const std::string &vocab_file) :
-        PreProcessor(1080, 1920, true, true, true, true, {0.5}, {0.5}) {
+    explicit FuyuProcessor(const std::string &vocab_file, int image_height = 1080, int image_width = 1920) :
+        PreProcessor(image_height, image_width, true, true, true, true, {0.5}, {0.5}) {
         Module::initBackend(MLLM_CPU);
         tokenizer_ = new UnigramTokenizer(vocab_file);
         auto tmp_token = vector<token_id_t>();
@@ -244,8 +245,12 @@ public:
             // Data is [height * width * channels],RGB
             const unsigned char *data = stbi_load_from_memory(image, image_length[i], &width_, &height_, &channels_, 3);
             if (data == nullptr) {
-                std::cerr << "load image failed" << std::endl;
+                MLLM_LOG_ERROR_STREAM << "load image failed" << std::endl;
                 exit(-1);
+            }
+            if (channels_ != 3) {
+                MLLM_LOG_ERROR("Image data channel not 3 but {},change to 3", channels_);
+                channels_ = 3;
             }
             auto float_data = RescaleImage(data, 255.0, width_ * height_ * channels_);
             images_.emplace_back(float_data, width_, height_, channels_);
@@ -260,7 +265,7 @@ public:
         }
         if (do_normalize_) {
             if (mean_.size() != std_.size() || mean_.size() != 1 && mean_.size() != 3) {
-                std::cerr << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
+                MLLM_LOG_ERROR_STREAM << "MEAN should be of same size of std and length should be (1 or 3) !" << std::endl;
                 exit(-1);
             }
             if (mean_.size() == 1) {
@@ -281,7 +286,7 @@ public:
             // read all file contents
             std::ifstream file(i, std::ios::binary | std::ios::ate);
             if (!file.is_open()) {
-                std::cerr << "Cannot open file: " << i << std::endl;
+                MLLM_LOG_ERROR_STREAM << "Cannot open file: " << i << std::endl;
                 exit(-1);
             }
             auto size = file.tellg();

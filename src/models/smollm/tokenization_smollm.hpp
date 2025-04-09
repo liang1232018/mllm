@@ -131,11 +131,11 @@ public:
         return result;
     }
 
-    Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
+    Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
-            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            const auto word_collection = unicode_regex_split(text, regex_exprs);
             for (auto &piece : word_collection) {
                 // look up table
                 // std::string token;
@@ -160,7 +160,7 @@ public:
                     BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
-                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    const auto word_collection = unicode_regex_split(p, regex_exprs);
                     for (auto &piece : word_collection) {
                         // look up table
                         // std::string token;
@@ -183,7 +183,7 @@ public:
         std::vector<token_id_t> ret;
 
         if (split_special_tokens_) {
-            const auto word_collection = unicode_regex_split(text, FIXED_PAT_STRS);
+            const auto word_collection = unicode_regex_split(text, regex_exprs);
             for (auto &piece : word_collection) {
                 // look up table
                 // std::string token;
@@ -208,7 +208,7 @@ public:
                     BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
                     ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
                 } else {
-                    const auto word_collection = unicode_regex_split(p, FIXED_PAT_STRS);
+                    const auto word_collection = unicode_regex_split(p, regex_exprs);
                     for (auto &piece : word_collection) {
                         // look up table
                         // std::string token;
@@ -226,6 +226,58 @@ public:
 
         auto realLength = ret.size();
         ret.resize(seqLength, vocab_size);
+        return std::make_pair(realLength, Tokenizer::tokens2Input(ret));
+    }
+
+    // padding the input by neareast multiplication of chunk_size
+    std::pair<int, Tensor> tokenizePaddingByChunk(std::string &text, int chunk_size, int vocab_size) {
+        std::vector<token_id_t> ret;
+
+        if (split_special_tokens_) {
+            const auto word_collection = unicode_regex_split(text, regex_exprs);
+            for (auto &piece : word_collection) {
+                // look up table
+                // std::string token;
+                // for (auto b : UTF8(piece)) token += byte_encoder_[b];
+
+                // using bpe
+                std::vector<token_id_t> tmp;
+                BPETokenizer::tokenize(piece, tmp, false, true, "");
+                ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+            }
+        } else {
+            auto parts = _splitWithDelimiters(text, special_tokens);
+            // for (auto p : parts) {
+            //     std::cout << "\"" << p << "\"" << std::endl;
+            // }
+            for (auto &p : parts) {
+                if (std::find(special_tokens.begin(), special_tokens.end(), p) != special_tokens.end()) {
+                    std::string token;
+                    for (auto b : UTF8(p)) token += byte_encoder_[b];
+
+                    std::vector<token_id_t> tmp;
+                    BPETokenizer::tokenize(token, tmp, false, special_tokens, true);
+                    ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                } else {
+                    const auto word_collection = unicode_regex_split(p, regex_exprs);
+                    for (auto &piece : word_collection) {
+                        // look up table
+                        // std::string token;
+                        // for (auto b : UTF8(piece)) token += byte_encoder_[b];
+
+                        // using bpe
+                        std::vector<token_id_t> tmp;
+                        BPETokenizer::tokenize(piece, tmp, false, true, "");
+                        assert(!tmp.empty());
+                        ret.insert(ret.end(), tmp.begin(), tmp.end() - 1);
+                    }
+                }
+            }
+        }
+
+        auto realLength = ret.size();
+        int paddingLength = (chunk_size - realLength % chunk_size) % chunk_size;
+        ret.resize(realLength + paddingLength, vocab_size);
         return std::make_pair(realLength, Tokenizer::tokens2Input(ret));
     }
 
@@ -259,6 +311,10 @@ public:
     }
 
 public:
+    std::vector<std::string> regex_exprs = {
+        "\\p{N}",
+        "'s|'t|'re|'ve|'m|'ll|'d| ?\\p{L}+| ?\\p{N}+| ?[^\\s\\p{L}\\p{N}]+|\\s+(?!\\S)",
+    };
     bool split_special_tokens_ = false;
     std::unordered_map<int, std::string> byte_encoder_;
     std::unordered_map<std::string, int> byte_decoder_;

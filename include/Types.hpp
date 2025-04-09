@@ -12,6 +12,7 @@
 #include <vector>
 #include <cassert>
 #include <cstdint>
+#include <Log.h>
 using std::string;
 using std::vector;
 using std::map;
@@ -22,9 +23,8 @@ typedef map<std::string, float> OpParam;
 // #define DEBUGOPTIME
 
 #define LLAMAFILE_SGEMM
-
+inline int KVCache_TYPE = 16;
 typedef enum {
-    MLLM_DEFAULT,
     MLLM_CPU,
     MLLM_OPENCL,
     MLLM_QNN,
@@ -35,6 +35,13 @@ enum TensorStatus {
     // TENSOR_DYNAMIC,
     TENSOR_STATIC_INIT,
     TENSOR_STATIC_READY,
+    TENSOR_STATIC_TRACE,
+    TENSOR_UNDEFINED,
+};
+
+enum CallableType {
+    OP,
+    TENSOR_FUNC
 };
 
 enum ErrorCode {
@@ -140,7 +147,12 @@ enum RoPEType {
     MLAROPE = 5,
 };
 
-enum QNNExecutionType {
+enum RoPEThetaType {
+    DEFAULT = 0,
+    LLAMA3 = 1,
+};
+
+enum ExecutionType {
     PROMPT = 0,
     AUTOREGRESSIVE = 1,
 };
@@ -329,7 +341,7 @@ static string DataTypeName(DataType dataType) {
         return "Unknown";
     }
 }
-static size_t DataTypeSize(DataType dtype, int count = 1) {
+static size_t DataTypeSize(DataType dtype, uint64_t count = 1) {
     switch (dtype) {
     case MLLM_TYPE_F32:
         return sizeof(float) * count;

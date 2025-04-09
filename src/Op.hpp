@@ -1,11 +1,13 @@
 #ifndef MLLM_OP_H
 #define MLLM_OP_H
 // #define DEBUGPRINT
+#include "Backend.hpp"
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include <cassert>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include "ParamLoader.hpp"
 #include "Timing.hpp"
 using std::function;
@@ -116,12 +118,12 @@ public:
     }
 
     virtual int getCacheSeqLen() {
-        assert(type_ == OpType::KVCACHE);
+        assert(type_ == OpType::KVCACHE || type_ == OpType::KVCACHENPU);
         std::cout << "only for KVCache" << std::endl;
         return -1;
     }
     virtual void clearCache() {
-        assert(type_ == OpType::KVCACHE);
+        assert(type_ == OpType::KVCACHE || type_ == OpType::KVCACHENPU || type_ == OpType::IROPE || type_ == OpType::ROPE);
         std::cout << "only for KVCache" << std::endl;
     }
 
@@ -137,6 +139,56 @@ protected:
     DataType activation_dtype_ = MLLM_TYPE_F32;
     OpType type_;
     static DataType no_load_weights_dtype_;
+};
+
+class Callable {
+public:
+    CallableType type_;
+    vector<shared_ptr<Tensor>> opInputs;
+    vector<shared_ptr<Tensor>> opOutputs;
+    Op *op;
+    vector<Tensor *> tensorInputs;
+    vector<Tensor *> tensorOutputs;
+    vector<float> args;
+    TensorFunction *tensorFunc;
+
+    Callable(CallableType type) :
+        type_(type) {
+    }
+
+    void reshape(){
+        if (type_ == CallableType::OP) {
+            op->reshape(opInputs, opOutputs);
+        }
+    }
+
+    void setUp() {
+        if (type_ == CallableType::OP) {
+            op->setUp(opInputs, opOutputs);
+        } else {
+            tensorFunc->setup(tensorOutputs, tensorInputs, args);
+        }
+    }
+
+    void execute() {
+        if (type_ == CallableType::OP) {
+            op->execute(opInputs, opOutputs);
+        } else {
+            tensorFunc->execute(tensorOutputs, tensorInputs, args);
+        }
+    }
+
+    vector<shared_ptr<Tensor>> outputs() {
+        if (type_ == CallableType::OP) {
+            return opOutputs;
+        } else {
+            vector<shared_ptr<Tensor>> outputs;
+            for (auto tensor : tensorOutputs) {
+                outputs.push_back(std::shared_ptr<Tensor>(tensor, [](Tensor *) {}));
+            }
+            return outputs;
+        }
+    }
 };
 
 } // namespace mllm

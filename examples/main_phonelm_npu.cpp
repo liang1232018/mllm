@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 
     cmdParser.parse_check(argc, argv);
 
-    const string npu_model_path = "../models/PhoneLM-1.5B-Instruct-128.mllm";
+    const string npu_model_path = "../models/phonelm-1.5b-instruct-int8.mllm";
     const string cpu_model_path = "../models/phonelm-with-head-q4k.mllm";
     const string merge_file_path = "../vocab/phonelm_merges.txt";
 
@@ -164,14 +164,8 @@ int main(int argc, char **argv) {
 
         do {
             // 1: Prefill stage using NPU chunk execute
-            if (chunk == 1)
-                npuExe.run(npu_ctx, &npuNet, {input});
-            else
-                npuExe.runExp(npu_ctx, &npuNet, {input});
+            npuExe.run(npu_ctx, &npuNet, {input});
             auto result = npuExe.result();
-
-            // result[0]->printData<float>();
-            // exit(0);
 
             // inter model for prefill-decode
             interExe.run(&interNet, {result[0]});
@@ -189,12 +183,15 @@ int main(int argc, char **argv) {
             auto prefill_cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
             auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
             auto decode_cpu_backend = dynamic_cast<CPUBackend *>(cpuNet.backends()[MLLM_CPU].get());
-            prefill_cpu_backend->setSequenceLength(real_seq_length);
-            prefill_cpu_backend->switchDecodeTag();
-            inter_cpu_backend->setSequenceLength(real_seq_length);
-            inter_cpu_backend->switchDecodeTag();
-            decode_cpu_backend->setSequenceLength(real_seq_length);
-            decode_cpu_backend->switchDecodeTag();
+            prefill_cpu_backend->setCurSequenceLength(real_seq_length);
+            prefill_cpu_backend->setExecutionType(AUTOREGRESSIVE);
+            prefill_cpu_backend->toggleSwitching();
+            inter_cpu_backend->setCurSequenceLength(real_seq_length);
+            inter_cpu_backend->setExecutionType(AUTOREGRESSIVE);
+            inter_cpu_backend->toggleSwitching();
+            decode_cpu_backend->setCurSequenceLength(real_seq_length);
+            decode_cpu_backend->setExecutionType(AUTOREGRESSIVE);
+            decode_cpu_backend->toggleSwitching();
 
             // // 2: Decoding stage using CPU execute
             for (int step = real_seq_length; step < real_seq_length + 100; step++) {
@@ -210,9 +207,9 @@ int main(int argc, char **argv) {
                 std::cout << out_token << std::flush;
 
                 if (step == real_seq_length) {
-                    prefill_cpu_backend->switchDecodeTag();
-                    inter_cpu_backend->switchDecodeTag();
-                    decode_cpu_backend->switchDecodeTag();
+                    prefill_cpu_backend->toggleSwitching();
+                    inter_cpu_backend->toggleSwitching();
+                    decode_cpu_backend->toggleSwitching();
                 }
             }
         } while (false);

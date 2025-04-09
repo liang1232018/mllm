@@ -4,6 +4,7 @@
 
 #ifndef MLLM_TOKENIZER_HPP
 #define MLLM_TOKENIZER_HPP
+#include <map>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -50,6 +51,9 @@ protected:
     std::string chat_template_end;
 
 public:
+    Tokenizer(){
+        // do nothing
+    }
     explicit Tokenizer(const std::string &vocab_file);
     Tokenizer(const std::string &vocab_file, const std::string &merge_file) :
         Tokenizer(vocab_file) {
@@ -58,7 +62,8 @@ public:
     virtual ~Tokenizer() {
     }
     virtual void tokenize(const std::string &text, std::vector<token_id_t> &tokens, bool bos) = 0;
-    void setSpecialToken(const std::string &bos = "", const std::string &eos = "", const std::string &unk = "", const std::string &nl = "");
+    virtual void setSpecialToken(const std::string &bos = "", const std::string &eos = "", const std::string &unk = "", const std::string &nl = "");
+    void setSpecialTokenMap(std::unordered_map<token_t, token_id_t> special_tokens_map);
     static std::string replaceString(const std::string &str, char old_char, const std::string &new_char);
     static std::string unCapitalize(const std::string &str);
     bool getTokenId(const token_t &token, token_id_t &id);
@@ -94,6 +99,44 @@ public:
         return tensor1;
     }
 
+    std::vector<std::string> _splitWithDelimiters(const std::string &str, const std::vector<std::string> &delimiters) {
+        std::string s = str;
+        std::vector<std::string> result;
+        size_t pos = 0;
+        auto isDelimiter = [&](size_t currentPos) {
+            for (const auto &delimiter : delimiters) {
+                if (currentPos + delimiter.length() <= s.length() && s.substr(currentPos, delimiter.length()) == delimiter) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        while (pos < s.length()) {
+            if (isDelimiter(pos)) {
+                if (pos != 0) {
+                    result.push_back(s.substr(0, pos));
+                }
+                size_t delimiterLength = delimiters.front().length();
+                for (const auto &delimiter : delimiters) {
+                    if (s.substr(pos, delimiter.length()) == delimiter) {
+                        delimiterLength = delimiter.length();
+                        result.push_back(delimiter);
+                        break;
+                    }
+                }
+                pos += delimiterLength;
+                s = s.substr(pos);
+                pos = 0;
+            } else {
+                ++pos;
+            }
+        }
+        if (!s.empty()) {
+            result.push_back(s);
+        }
+        return result;
+    }
+
 public:
     unsigned int argmax(const std::vector<float> &scores) {
         if (scores.empty()) {
@@ -102,13 +145,13 @@ public:
         return std::max_element(scores.begin(), scores.end()) - scores.begin();
     }
 
-    virtual Tensor tokenize(std::string &text, string name = "input", BackendType type = MLLM_CPU) {
+    virtual Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) {
         bool bos_flag = true;
         auto tokens_id = std::vector<token_id_t>();
         this->tokenize(text, tokens_id, bos_flag);
         return tokens2Input(tokens_id, name, type);
     }
-    virtual vector<Tensor> tokenizes(std::string &text) {
+    virtual vector<Tensor> tokenizes(const std::string &text) {
         return {tokenize(text)};
     }
     virtual std::string detokenize(const std::vector<token_id_t> &tokens);
@@ -135,11 +178,11 @@ public:
         return postprocess(out_string);
     }
     */
-    void set_chat_template(const std::string &pre, const std::string &end) {
+    virtual void set_chat_template(const std::string &pre, const std::string &end) {
         chat_template_pre = pre;
         chat_template_end = end;
     }
-    std::string apply_chat_template(const std::string &text) {
+    virtual std::string apply_chat_template(const std::string &text) {
         return chat_template_pre + text + chat_template_end;
     }
 };

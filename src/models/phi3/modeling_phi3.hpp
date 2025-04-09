@@ -28,9 +28,10 @@ public:
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto x = gate_up_proj(inputs[0]);
-        auto split_tensors = Tensor::split(x, {ffn_hidden_, ffn_hidden_}, DIMENSION);
-        Tensor gate = split_tensors[1];
-        x = gate * silu(split_tensors[0]);
+        auto splited_y_12 = x.split({ffn_hidden_, ffn_hidden_}, DIMENSION);
+        auto y_1 = splited_y_12[0];
+        Tensor y_2 = splited_y_12[1];
+        x = y_2 * silu(y_1);
         x = down_proj(x);
         return {x};
     }
@@ -97,10 +98,10 @@ public:
 
     void clear_kvcache() override {
         for (auto &block : blocks) {
-            auto kvcahce = block.get_attention().get_cache();
-            for (auto &cache : kvcahce) {
-                cache->clearCache();
-            }
+            auto kvcache = block.get_attention().get_cache();
+            for (auto &cache : kvcache) { cache->clearCache(); }
+            auto ropes = block.get_attention().get_rope();
+            for (auto &rope : ropes) { rope->clearCache(); }
         }
     }
 };
