@@ -130,7 +130,7 @@ int32_t qhmath_hvx_dequantize_ahf(
     HVX_Vector scale_vec;
 
     int32_t block, l2fetch_block;
-    int32_t leftover = size & 63;
+    int32_t leftover = size & 127;
     int32_t vectors_in_rounddown = size / 128;  // element number!
     // int32_t leftover_size = leftover * sizeof(float);
 
@@ -185,6 +185,75 @@ int32_t qhmath_hvx_dequantize_ahf(
 
         *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
         *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout2), scale_vec));
+
+    }
+
+
+    return 0;
+}
+
+int32_t qhmath_hvx_dequantize_ui16_ahf(
+    int8_t *restrict input,
+    int8_t *restrict output,
+    uint32_t size,
+    float scale)
+{
+    if ((input == NULL) || (output == NULL) || (size == 0))
+    {
+        return -1;
+    }
+
+    HVX_Vector *iptr = (HVX_Vector *) input;
+    HVX_UVector *optr = (HVX_UVector *) output;
+
+    HVX_Vector sline1p, sline1c, sline1;
+    HVX_Vector scale_vec;
+
+    int32_t block, l2fetch_block;
+    int32_t leftover = size & 63;
+    int32_t vectors_in_rounddown = size / 64;  // element number!
+    // int32_t leftover_size = leftover * sizeof(float);
+
+    sline1p = *iptr++;
+
+    uint32_t convert = 0x80008000;
+    HVX_Vector convert_vector = Q6_V_vsplat_R(convert);
+
+    
+    scale_vec = Q6_V_vsplat_R(float_to_fp16s(scale));
+
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        block = Q6_R_min_RR(i, BLOCK_SIZE);
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        for (int32_t j = 0; j < block; ++j)
+        {
+            sline1c = *iptr++;
+            sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+            HVX_Vector temp = sline1;
+
+            HVX_Vector sout1 =  Q6_Vh_vsub_VhVh(temp, convert_vector);
+            *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
+
+            sline1p = sline1c;
+        }
+    }
+
+    if (vectors_in_rounddown > 0) {
+
+        sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+
+        HVX_Vector temp = sline1;
+
+        HVX_Vector sout1 =  Q6_Vh_vsub_VhVh(temp, convert_vector);
+        *optr++ =  Q6_Vhf_equals_Vqf16(Q6_Vqf16_vmpy_VhfVhf(Q6_Vhf_equals_Vh(sout1), scale_vec));
 
     }
 
@@ -289,6 +358,79 @@ int32_t qhmath_hvx_dequantize_af(
     return 0;
 }
 
+int32_t qhmath_hvx_dequantize_ui16_af(
+    int8_t *restrict input,
+    int8_t *restrict output,
+    uint32_t size,
+    float scale)
+{
+    if ((input == NULL) || (output == NULL) || (size == 0))
+    {
+        return -1;
+    }
+
+    HVX_Vector *iptr = (HVX_Vector *) input;
+    HVX_UVector *optr = (HVX_UVector *) output;
+
+    HVX_Vector sline1p, sline1c, sline1;
+    HVX_Vector scale_vec;
+    HVX_Vector one_vec;
+
+    int32_t block, l2fetch_block;
+    int32_t leftover = size & 63;
+    int32_t vectors_in_rounddown = size / 64;
+    // int32_t leftover_size = leftover * sizeof(float);
+
+    sline1p = *iptr++;
+
+    uint32_t convert = 0x00800080;
+    HVX_Vector convert_vector = Q6_V_vsplat_R(convert);
+
+    
+    scale_vec = Q6_V_vsplat_R(float_to_bits(scale));
+    one_vec = Q6_V_vsplat_R(float_to_fp16s(1.0));
+    scale_vec = Q6_Vqf32_vadd_VsfVsf(scale_vec, Q6_V_vzero());
+
+    for (int32_t i = vectors_in_rounddown - 1; i > 0; i -= BLOCK_SIZE)
+    {
+        block = Q6_R_min_RR(i, BLOCK_SIZE);
+        l2fetch_block = Q6_R_min_RR(i - L2FETCH_AHEAD, BLOCK_SIZE);
+
+        if (l2fetch_block > 0)
+        {
+            l2fetch(iptr + L2FETCH_AHEAD, VLEN, VLEN, l2fetch_block, 0);
+        }
+
+        for (int32_t j = 0; j < block; ++j)
+        {
+            sline1c = *iptr++;
+            sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+            
+            HVX_Vector temp = Q6_Vh_vsub_VhVh(sline1, convert_vector);
+            HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(temp), one_vec);
+            *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec));
+            *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec));
+
+
+            sline1p = sline1c;
+        }
+    }
+
+    if (vectors_in_rounddown > 0) {
+
+        sline1c = is_aligned(iptr, VLEN) && leftover == 0 ? sline1p : *iptr++;
+        sline1 = Q6_V_valign_VVR(sline1c, sline1p, (size_t) input);
+
+        HVX_Vector temp = Q6_Vh_vsub_VhVh(sline1, convert_vector);
+        HVX_VectorPair result = Q6_Wqf32_vmpy_VhfVhf(Q6_Vhf_equals_Vh(temp), one_vec);
+        *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_lo_W(result), scale_vec));
+        *optr++ =  Q6_Vsf_equals_Vqf32(Q6_Vqf32_vmpy_Vqf32Vqf32(Q6_V_hi_W(result), scale_vec));
+
+    }
+
+    return 0;
+}
+
 template<typename TensorType,typename TensorType1,typename TensorType2>
 GraphStatus llamadequantizeImpl(TensorType1 &out_0,
                                 const TensorType1 &in_0,
@@ -323,8 +465,11 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
 
     if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float16) {
         qhmath_hvx_dequantize_ahf(in_ptr, out_ptr, size, scale_);
-    }
-    else {
+    } else if (in_0.get_dtype() == DType::QUInt16 && out_0.get_dtype() == DType::Float16) {
+        qhmath_hvx_dequantize_ui16_ahf(in_ptr, out_ptr, size, scale_);
+    } else if (in_0.get_dtype() == DType::QUInt16 && out_0.get_dtype() == DType::Float32) {
+        qhmath_hvx_dequantize_ui16_af(in_ptr, out_ptr, size, scale_);
+    } else {
         qhmath_hvx_dequantize_af(in_ptr, out_ptr, size, scale_);
     }
         
@@ -361,7 +506,7 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
     
-    if (out_0.get_dtype() == DType::Float32) {
+    if (in_0.get_dtype() == DType::QUInt8 && out_0.get_dtype() == DType::Float32) {
         auto out_ptr = (float*)out_0.raw_data();
 
         for (Idx b = 0; b < b_in; b++) {
@@ -376,7 +521,37 @@ GraphStatus llamadequantizeImpl(TensorType1 &out_0,
                 }
             }
         }
-    } else if (out_0.get_dtype() == DType::Float16) {
+    } else if (in_0.get_dtype() == DType::QUInt16  && out_0.get_dtype() == DType::Float32) {
+        auto out_ptr = (float*)out_0.raw_data();
+
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                for (Idx d = 0; d < d_in; d++) {
+
+                    int32_t inval       = static_cast<int32_t>(*in_ptr++);
+                    *out_ptr++ = (inval-32768) * scale_;                  
+                    
+                }
+                }
+            }
+        }
+    } else if (in_0.get_dtype() == DType::QUInt16  && out_0.get_dtype() == DType::Float16) {
+        auto out_ptr = (float*)out_0.raw_data();
+
+        for (Idx b = 0; b < b_in; b++) {
+            for (Idx h = 0; h < h_in; h++) {
+                for (Idx w = 0; w < w_in; w++) {
+                for (Idx d = 0; d < d_in; d++) {
+
+                    int32_t inval       = static_cast<int32_t>(*in_ptr++);
+                    *out_ptr++ = (__fp16)((inval-32768) * scale_);                
+                    
+                }
+                }
+            }
+        }
+    } else if (in_0.get_dtype() == DType::QUInt16  && out_0.get_dtype() == DType::Float16) {
 
         auto out_ptr = (__fp16*)out_0.raw_data();
 
