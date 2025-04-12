@@ -354,7 +354,7 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
     float biasScale = 0;
 
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
-    biasScale = biasScale_.hostPtr<float>()[0] * 127.0 / (pow(2, 31) - 1);
+    biasScale = biasScale_.hostPtr<float>()[0];
     // create a int32 buffer, convert the bias to int32
     auto biasBuffer = (int32_t *)malloc(bias_.size() * sizeof(int32_t));
 #pragma omp parallel for
