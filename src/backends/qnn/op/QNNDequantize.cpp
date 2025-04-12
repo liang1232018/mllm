@@ -56,7 +56,7 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
     if (isFP32_) {
         uint32_t paramsDeQuantizeDimension[1] = {1};
         auto paramsDeQuantizeName = name() + "dequantize_params";
-        // TODO: add input op param
+
         vector<Qnn_Param_t> paramsDeQuantize = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "scale",
@@ -97,7 +97,7 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
         outputs[0]->setDtype(MLLM_TYPE_F16);
         uint32_t paramsDeQuantizeDimension[1] = {1};
         auto paramsDeQuantizeName = name() + "dequantize_params";
-        // TODO: add input op param
+
         vector<Qnn_Param_t> paramsDeQuantize = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "scale",

@@ -354,7 +354,14 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
     float biasScale = 0;
 
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
-    biasScale = biasScale_.hostPtr<float>()[0];
+    biasScale = biasScale_.hostPtr<float>()[0] * 127.0 / (pow(2, 31) - 1);
+    // create a int32 buffer, convert the bias to int32
+    auto biasBuffer = (int32_t *)malloc(bias_.size() * sizeof(int32_t));
+#pragma omp parallel for
+    for (int i = 0; i < out_features_; i++) {
+        int32_t val = bias_.dataAt<uint8_t>(0, 0, 0, i) - 128;
+        biasBuffer[i] = val;
+    }
 
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,
@@ -363,17 +370,18 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
                                                       .name = bias_.name().c_str(),
                                                       .type = QNN_TENSOR_TYPE_STATIC,
                                                       .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                      .dataType = QNN_DATATYPE_UFIXED_POINT_8,
+                                                      .dataType = QNN_DATATYPE_SFIXED_POINT_32,
                                                       .quantizeParams = {qnnQuantDefined,
                                                                          QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
-                                                                         {.scaleOffsetEncoding = {.scale = biasScale, .offset = -128}}},
+                                                                         {.scaleOffsetEncoding = {.scale = biasScale, .offset = 0}}},
                                                       .rank = 1,
                                                       .dimensions = dimensionsBias,
                                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                                      .clientBuf = {.data = bias_.hostPtr<void>(),
-                                                                    .dataSize = (uint32_t)bias_.cntSize()}}});
+                                                      .clientBuf = {.data = biasBuffer,
+                                                                    .dataSize = (uint32_t)(bias_.size() * sizeof(int32_t))}}});
     // free bias host memory
     bias_.free();
+    delete biasBuffer;
 
     float outputScale = 0;
     outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
