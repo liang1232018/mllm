@@ -61,9 +61,9 @@ public:
         k_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize");
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false);
+        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -104,7 +104,7 @@ public:
         // remove "self_attn." in base_name
         auto layer_base_name = base_name.substr(0, base_name.size() - 10);
         input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, layer_base_name + names._attn_norm_name);
-        pre_attn_quantize = Quantize(true, layer_base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+        pre_attn_quantize = Quantize(true, layer_base_name + names._attn_base_name + names._q_proj_name + ".quantize", MLLM_TYPE_I16);
 
         pre_attn_view = View(-1, 1, -1, num_heads * head_dim, base_name + "ires_split-00_view_");
 
@@ -116,9 +116,9 @@ public:
         k_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize");
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false);
+        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -530,7 +530,7 @@ public:
 
         if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
             input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-            pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+            pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize", MLLM_TYPE_I16);
             part1 = make_unique<QwenDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
         } else {
             part1 = make_unique<QwenDecoderNPUPart1WithRes>(config, names, chunk_size, base_name + names._attn_base_name);
