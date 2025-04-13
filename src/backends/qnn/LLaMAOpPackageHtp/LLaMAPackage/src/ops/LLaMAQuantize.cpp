@@ -1194,6 +1194,10 @@ int32_t qhmath_hvx_quantize_af(
     return 0;
 }
 
+#define INT16_ROUND_2_SCALE 15
+#define INT16_ROUND_SCALSE ((1 << INT16_ROUND_2_SCALE) * 1.0f)
+
+
 int32_t qhmath_hvx_quantize_ui16_af(
     float *restrict input,
     float *restrict output,
@@ -1232,7 +1236,7 @@ int32_t qhmath_hvx_quantize_ui16_af(
     high_level_vec = Q6_V_vsplat_R(float_to_bits(high_level));
     scale_vec = Q6_V_vsplat_R(float_to_bits(scale));
     es_vec = Q6_V_vsplat_R(float_to_bits(es));
-    round_scale_vec = Q6_V_vsplat_R(float_to_bits(ROUND_SCALSE));
+    round_scale_vec = Q6_V_vsplat_R(float_to_bits(INT16_ROUND_SCALSE));
 
     HVX_Vector zero_v_sf = Q6_V_vzero();
     es_vec = Q6_Vqf32_vadd_VsfVsf(es_vec, zero_v_sf);
@@ -1264,7 +1268,7 @@ int32_t qhmath_hvx_quantize_ui16_af(
 
 
             sout1 = Q6_Vw_equals_Vsf(sout1);
-            sout1 = Q6_Vw_vasr_VwR(sout1, ROUND_2_SCALE);
+            sout1 = Q6_Vw_vasr_VwR(sout1, INT16_ROUND_2_SCALE);
             // sout1 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout1, Q6_V_vzero()), 0);
 
             sline2c = *iptr++;
@@ -1279,7 +1283,7 @@ int32_t qhmath_hvx_quantize_ui16_af(
             sout2 = Q6_Vsf_equals_Vqf32(sout2);
 
             sout2 = Q6_Vw_equals_Vsf(sout2);
-            sout2 = Q6_Vw_vasr_VwR(sout2, ROUND_2_SCALE);
+            sout2 = Q6_Vw_vasr_VwR(sout2, INT16_ROUND_2_SCALE);
             // sout2 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout2, Q6_V_vzero()), 0);
 
             sline3c = *iptr++;
@@ -1294,7 +1298,7 @@ int32_t qhmath_hvx_quantize_ui16_af(
             sout3 = Q6_Vsf_equals_Vqf32(sout3);
 
             sout3 = Q6_Vw_equals_Vsf(sout3);
-            sout3 = Q6_Vw_vasr_VwR(sout3, ROUND_2_SCALE);
+            sout3 = Q6_Vw_vasr_VwR(sout3, INT16_ROUND_2_SCALE);
             // sout3 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout3, Q6_V_vzero()), 0);
 
             sline4c = *iptr++;
@@ -1309,7 +1313,7 @@ int32_t qhmath_hvx_quantize_ui16_af(
             sout4 = Q6_Vsf_equals_Vqf32(sout4);
 
             sout4 = Q6_Vw_equals_Vsf(sout4);
-            sout4 = Q6_Vw_vasr_VwR(sout4, ROUND_2_SCALE);
+            sout4 = Q6_Vw_vasr_VwR(sout4, INT16_ROUND_2_SCALE);
             // sout4 = qhmath_hvx_vw_convert_vqf32_rmode(Q6_Vqf32_vadd_VsfVsf(sout4, Q6_V_vzero()), 0);
 
 
@@ -1655,7 +1659,7 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
     // NHWC
     auto in_ptr = (float*)in_0.raw_data_const();
     auto out_ptr = (float*)out_0.raw_data();
-    qhmath_hvx_quantize_ui16_af(in_ptr, out_ptr, size, -128.0f, 127.0f, scale_);
+    qhmath_hvx_quantize_ui16_af(in_ptr, out_ptr, size, -32768.0f, 32767.0f, scale_);
 
   }
 
@@ -1700,12 +1704,14 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
 
     float scale_ = scale(0,0,0,0); 
 
-    auto out_ptr = (int8_t*)out_0.raw_data();
+    
 
     auto [b_in, h_in, w_in, d_in] = in_0.dims();
 
     DType dtype = in_0.get_dtype();
     if (dtype == DType::Float32 && out_0.get_dtype() == DType::QUInt8) {
+
+        auto out_ptr = (int8_t*)out_0.raw_data();
     
         for (Idx b = 0; b < b_in; b++) {
             for (Idx h = 0; h < h_in; h++) {
@@ -1738,6 +1744,8 @@ GraphStatus llamaquantizeImpl(TensorType1 &out_0,
     }
 
     if (dtype == DType::Float32 && out_0.get_dtype() == DType::QUInt16) {
+
+        auto out_ptr = (int16_t*)out_0.raw_data();
     
         for (Idx b = 0; b < b_in; b++) {
             for (Idx h = 0; h < h_in; h++) {
