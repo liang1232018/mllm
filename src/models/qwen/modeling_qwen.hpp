@@ -90,6 +90,10 @@ public:
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
 
+        query_states.saveData<float>("-cpu");
+        std::cout << "k dtype: " << key_states.dtype() << std::endl;
+        key_states.saveData<float>("-cpu");
+
         // embedding
         query_states = q_rope(query_states);
         key_states = k_rope(key_states);
@@ -107,7 +111,11 @@ public:
 
         // attention output
         auto atten_output = Tensor::mm(atten_weight, value_states);
+
+        atten_output.saveData<float>("-ATTN-cpu");
+
         atten_output = atten_output.view(-1, 1, -1, head_dim * num_heads);
+
         atten_output = o_proj(atten_output);
         return {atten_output};
     }

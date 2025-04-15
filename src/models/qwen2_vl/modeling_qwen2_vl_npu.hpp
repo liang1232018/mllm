@@ -10,6 +10,7 @@
 // #include "models/qwen/modeling_qwen.hpp"
 #include <arm_neon.h>
 #include <cassert>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -78,6 +79,8 @@ public:
         query_states = q_view(query_states);
         key_states = k_view(key_states);
         value_states = v_view(value_states);
+
+        // return {query_states, key_states, value_states};
 
         query_states = q_dequant(query_states);
         key_states = k_dequant(key_states);
@@ -186,10 +189,9 @@ public:
         auto v = inputs[2];
 
         // // PRINTDATA
-        // if (Tensor::tensor_status == TENSOR_STATIC_READY) {
-        //     q.saveData<float>("_qnn");
-        //     k.saveData<float16_t>("_qnn");
-        // }
+        q.saveData<float>("_qnn");
+        k.saveData<float16_t>("_qnn");
+        v.saveData<float16_t>("_qnn");
 
         q = q_rope(q, position_ids);
         k = k_rope(k, position_ids);
@@ -436,7 +438,7 @@ public:
 
         if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
             input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
-            pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize");
+            pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize", MLLM_TYPE_I16);
             part1 = make_unique<QwenDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
         } else {
             part1 = make_unique<QwenDecoderNPUPart1WithRes>(config, names, chunk_size, base_name + names._attn_base_name);
@@ -459,7 +461,11 @@ public:
         if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
             x = input_layernorm(inputs[0]);
 
+            x.saveData<float>("_qnn");
+
             x = pre_attn_quantize(x);
+
+            x.saveIntData<int16_t>("_qnn");
 
             _SubgraphStart_1({x});
 
@@ -469,6 +475,11 @@ public:
             v = q_k_v[2];
             res = inputs[0];
             _SubgraphEnd_1(q_k_v);
+
+            // q.saveIntData<int16_t>("_qnn_int");
+            // k.saveIntData<int16_t>("_qnn_int");
+            // v.saveIntData<int16_t>("_qnn_int");
+            // return q_k_v;
         } else {
             auto q_k_v_res = (*part1)(inputs); // q,k,v,res
             q = q_k_v_res[0];
@@ -829,6 +840,7 @@ class Qwen2VL_PrefillBody final : public Module {
     Layer norm;
     Parameter lm_head;
     Layer lm_head_layer;
+    int num_layer;
 
     bool tie_embedding_words;
 
@@ -861,6 +873,8 @@ public:
         auto qwen_names = config.names_config;
         tie_embedding_words = config.tie_embedding_words;
 
+        num_layer = config.num_hidden_layers;
+
         blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(config.num_hidden_layers, config, qwen_names, chunk_size, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
         if (tie_embedding_words) {
@@ -874,14 +888,15 @@ public:
         auto hidden_states = inputs[0];
         auto position_ids = inputs[1];
 
+        hidden_states.saveData<float>("_qnn");
+
         for (auto &block : blocks) {
             hidden_states = (*block)({hidden_states, position_ids})[0];
         }
+        return {hidden_states};
 
-        // // PRINTDATA
-        // if (Tensor::tensor_status == TENSOR_STATIC_READY) {
-        //     hidden_states.saveData<float>("_qnn");
-        // }
+        hidden_states.saveData<float>("_qnn");
+
         hidden_states = norm(hidden_states);
         if (tie_embedding_words) {
             hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));

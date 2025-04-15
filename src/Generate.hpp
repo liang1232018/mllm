@@ -74,6 +74,8 @@ public:
             } else {
                 _seq = seq_before_padding - 1;
             }
+
+            std::cout << "sample seq: " << _seq << std::endl;
         }
         for (int i = 0; i < _dims; ++i) {
             auto value = t.dataAt<float>(0, 0, _seq, i);

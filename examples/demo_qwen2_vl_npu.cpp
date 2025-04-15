@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include "Parallel.hpp"
@@ -55,7 +56,6 @@ int main(int argc, char **argv) {
 
     // warm up
     auto merged_embd_warmup_tensor = Tensor(Backend::global_backends[MLLM_CPU]);
-    merged_embd_warmup_tensor.setName("out-model.embed_tokens-index_put");
     merged_embd_warmup_tensor.reshape(1, 1, chunk_size, 1536);
     merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
     merged_embd_warmup_tensor.alloc();
@@ -117,6 +117,7 @@ int main(int argc, char **argv) {
     // copy the data from merged_embd[0] to merged_embd_warmup_tensor
     auto source = merged_embd[0].hostPtr<void>();
     auto dest = merged_embd_warmup_tensor.hostPtr<void>();
+    std::cout << "input of body: " << merged_embd_warmup_tensor.backend()->type() << std::endl;
     memcpy(dest, source, merged_embd[0].cntSize());
 
     auto result = prefill_body({merged_embd_warmup_tensor, input_tensors.back()});
@@ -128,6 +129,8 @@ int main(int argc, char **argv) {
     auto out_token = outputs.second;
     auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
     std::cout << output_string << std::flush;
+
+    exit(0);
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 

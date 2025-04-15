@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2.5_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2.5_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-i8-test.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-int8-int32bias-test.mllm");
     cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B]", false, "1.5B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
@@ -47,6 +47,8 @@ int main(int argc, char **argv) {
         std::cout << "[Q] " << in_strs[i] << std::endl;
         std::cout << "[A] " << std::flush;
 
+        input_tensor.printData<float>();
+
         // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
 
@@ -64,6 +66,8 @@ int main(int argc, char **argv) {
             std::cout << output_string << std::flush;
             return true;
         });
+
+        exit(0);
 
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);

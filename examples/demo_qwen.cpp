@@ -18,10 +18,10 @@ int main(int argc, char **argv) {
     std::iostream::sync_with_stdio(false);
 
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-q8_0.mllm");
-    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B |]", false, "1.8B");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2.5_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2.5_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2.5-1.5b-instruct-fp32.mllm");
+    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B |]", false, "1.5B");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -39,9 +39,7 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_strs = {
-        "Hello, who are you?",
-        "What can you do?",
-        "Please introduce Beijing University of Posts and Telecommunications.",
+        " Give me a short introduction to large language model.",
     };
     for (int i = 0; i < in_strs.size(); ++i) {
         auto input_str = tokenizer.apply_chat_template(in_strs[i]);
@@ -50,8 +48,8 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         LlmTextGeneratorOpts opt{
-            .max_new_tokens = 100,
-            .do_sample = true,
+            .max_new_tokens = 1,
+            .do_sample = false,
             .temperature = 0.3F,
             .top_k = 50,
             .top_p = 0.F,

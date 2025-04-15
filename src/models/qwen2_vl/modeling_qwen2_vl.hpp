@@ -205,6 +205,7 @@ private:
 
 // Copied from GemmaAttention with Gemma->Qwen and using SWA
 class QWenAttention final : public Module {
+    string name;
 public:
     QWenAttention() = default;
     QWenAttention(const Qwen2VLConfig &config, const QWenNameConfig &names, const string &base_name) {
@@ -213,6 +214,7 @@ public:
         head_dim = config.hidden_size / num_heads;
         num_key_value_heads = config.num_key_value_heads;
         num_key_value_groups = num_heads / num_key_value_heads;
+        name = base_name;
 
         // init layers
         q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
@@ -231,11 +233,18 @@ public:
     std::vector<Tensor> Forward(std::vector<Tensor> inputs, std::vector<std::any> args) override {
         auto position_ids = inputs[1];
 
+        inputs[0].saveData<float>(name + "_cpu");
+
         auto query_states = q_proj(inputs[0]);
         auto key_states = k_proj(inputs[0]);
         auto value_states = v_proj(inputs[0]);
         query_states = query_states.view(-1, num_heads, -1, head_dim);
         key_states = key_states.view(-1, num_key_value_heads, -1, head_dim);
+        // PRINTDATA
+        query_states.saveData<float>(name + "_cpu");
+        key_states.saveData<float>(name + "_cpu");
+        value_states.saveData<float>(name + "_cpu");
+
         value_states = value_states.view(-1, num_key_value_heads, -1, head_dim);
         query_states = q_rope(query_states, position_ids);
         key_states = k_rope(key_states, position_ids);
