@@ -8,7 +8,6 @@
 #include "Types.hpp"
 #include "configuration_qwen.hpp"
 #include <arm_neon.h>
-#include <cstdint>
 #include <memory>
 
 using namespace mllm;
