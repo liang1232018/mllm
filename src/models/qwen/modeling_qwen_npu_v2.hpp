@@ -14,7 +14,7 @@ using namespace mllm;
 namespace v2 {
 
 // a 'just working' try
-std::set shadowLayers = {1, 2, 3, 4, 5, 24, 26};
+std::set shadowLayers = {1, 2, 4, 5, 26};
 
 // NPU QKV part
 class QwenDecoderNPUPart1 : public Module {

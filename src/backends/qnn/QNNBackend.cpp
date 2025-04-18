@@ -294,6 +294,9 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
         case MLLM_TYPE_F32:
             data_type = QNN_DATATYPE_FLOAT_32;
             break;
+        case MLLM_TYPE_F16:
+            data_type = QNN_DATATYPE_FLOAT_16;
+            break;
         case MLLM_TYPE_I8: {
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
             quantizeDefined = QNN_DEFINITION_DEFINED;

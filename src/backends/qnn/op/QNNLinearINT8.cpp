@@ -181,6 +181,13 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     biasScale = biasScale_.hostPtr<float>()[0];
 
+    auto biasBuffer = (int8_t *)malloc(bias_.count() * sizeof(int8_t));
+#pragma omp parallel for
+    for (int i = 0; i < out_features_; i++) {
+        int32_t val = bias_.dataAt<int8_t>(0, 0, 0, i) + 128;
+        biasBuffer[i] = val;
+    }
+
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,
                                                   .v1 = {
@@ -195,8 +202,8 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
                                                       .rank = 1,
                                                       .dimensions = dimensionsBias,
                                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                                      .clientBuf = {.data = bias_.hostPtr<void>(),
-                                                                    .dataSize = (uint32_t)bias_.cntSize()}}});
+                                                      .clientBuf = {.data = biasBuffer,
+                                                                    .dataSize = (uint32_t)(bias_.count() * sizeof(int8_t)) }}});
     // free bias host memory
     bias_.free();
 
@@ -356,10 +363,11 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     biasScale = biasScale_.hostPtr<float>()[0];
     // create a int32 buffer, convert the bias to int32
-    auto biasBuffer = (int32_t *)malloc(bias_.size() * sizeof(int32_t));
+    auto biasBuffer = (int32_t *)malloc(bias_.count() * sizeof(int32_t));
 #pragma omp parallel for
     for (int i = 0; i < out_features_; i++) {
-        int32_t val = bias_.dataAt<uint8_t>(0, 0, 0, i) - 128;
+        // int32_t val = bias_.dataAt<uint8_t>(0, 0, 0, i) - 128;
+        int32_t val = bias_.dataAt<int32_t>(0, 0, 0, i);
         biasBuffer[i] = val;
     }
 
@@ -378,7 +386,7 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
                                                       .dimensions = dimensionsBias,
                                                       .memType = QNN_TENSORMEMTYPE_RAW,
                                                       .clientBuf = {.data = biasBuffer,
-                                                                    .dataSize = (uint32_t)(bias_.size() * sizeof(int32_t))}}});
+                                                                    .dataSize = (uint32_t)(bias_.count() * sizeof(int32_t))}}});
     // free bias host memory
     bias_.free();
     delete biasBuffer;
@@ -415,16 +423,16 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
 
     bias_.setName(name() + ".bias");
     bias_.reshape(1, 1, 1, out_features_);
-    bias_.setDtype(MLLM_TYPE_I8);
+    bias_.setDtype(MLLM_TYPE_I32);
     bias_.alloc();
     if (support_bias_) {
         loader.load(&bias_);
-        // sign to unsign
-        for (int i = 0; i < out_features_; i++) {
-            int32_t val = bias_.dataAt<int8_t>(0, 0, 0, i);
-            val += 128;
-            bias_.setDataAt<uint8_t>(0, 0, 0, i, (uint8_t)val);
-        }
+        // // sign to unsign
+        // for (int i = 0; i < out_features_; i++) {
+        //     int32_t val = bias_.dataAt<int8_t>(0, 0, 0, i);
+        //     val += 128;
+        //     bias_.setDataAt<uint8_t>(0, 0, 0, i, (uint8_t)val);
+        // }
     } else {
         memset(bias_.hostPtr<void>(), 0, bias_.cntSize());
     }
