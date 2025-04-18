@@ -181,6 +181,13 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
     qnnQuantDefined = QNN_DEFINITION_DEFINED;
     biasScale = biasScale_.hostPtr<float>()[0];
 
+    auto biasBuffer = (int8_t *)malloc(bias_.count() * sizeof(int8_t));
+#pragma omp parallel for
+    for (int i = 0; i < out_features_; i++) {
+        int32_t val = bias_.dataAt<int8_t>(0, 0, 0, i) + 128;
+        biasBuffer[i] = val;
+    }
+
     qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
                                                   .version = QNN_TENSOR_VERSION_1,
                                                   .v1 = {
@@ -195,8 +202,8 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
                                                       .rank = 1,
                                                       .dimensions = dimensionsBias,
                                                       .memType = QNN_TENSORMEMTYPE_RAW,
-                                                      .clientBuf = {.data = bias_.hostPtr<void>(),
-                                                                    .dataSize = (uint32_t)bias_.cntSize()}}});
+                                                      .clientBuf = {.data = biasBuffer,
+                                                                    .dataSize = (uint32_t)(bias_.count() * sizeof(int8_t)) }}});
     // free bias host memory
     bias_.free();
 
