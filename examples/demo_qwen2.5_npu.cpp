@@ -67,8 +67,6 @@ int main(int argc, char **argv) {
             return true;
         });
 
-        exit(0);
-
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
         static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();

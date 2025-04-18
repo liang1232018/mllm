@@ -109,7 +109,7 @@ struct QWenConfig : public TransformerConfig {
             intermediate_size = 5504;
             max_position_embeddings = 32768;
             num_attention_heads = 16;
-            num_hidden_layers = 1;
+            num_hidden_layers = 24;
             num_key_value_heads = 16;
             rms_norm_eps = 1e-6;
             rope_theta = 1000000.0;
@@ -124,7 +124,7 @@ struct QWenConfig : public TransformerConfig {
             max_position_embeddings = 32768;
             max_window_layers = 28;
             num_attention_heads = 12;
-            num_hidden_layers = 1;
+            num_hidden_layers = 28;
             num_key_value_heads = 2;
             rms_norm_eps = 1e-6;
             rope_theta = 1000000.0;

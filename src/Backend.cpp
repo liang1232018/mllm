@@ -37,7 +37,6 @@ const std::shared_ptr<BackendCreator> GetBackendCreator(BackendType type) {
     if (type == MLLM_QNN || type == MLLM_XNNPACK) {
         Layer::use_layername_2_tensorname = false;
     }
-    Layer::use_layername_2_tensorname = false;
     registerBackend();
 
     auto &gExtraCreator = GetBackendCreatorMap();
