@@ -7,7 +7,6 @@
 #include "Tensor.hpp"
 #include "Types.hpp"
 #include "configuration_qwen.hpp"
-#include <arm_neon.h>
 #include <memory>
 
 using namespace mllm;
@@ -193,11 +192,7 @@ public:
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
 
-        o.saveData<float>("-ATTN-qnn");
-
         o = o_quantize(o);
-
-        o.saveIntData<int8_t>("-qnn-int8");
 
         return {o};
     }
@@ -249,8 +244,8 @@ public:
         num_key_value_groups = num_heads / num_key_value_heads;
 
         // for QNN linear speed up
-        pre_oproj_view = View(1, 1, chunk_size, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
-        out_proj = Linear(num_heads * head_dim, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
+        pre_oproj_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, head_dim * num_heads, base_name + names._attn_base_name + "or_split-00_view_");
+        out_proj = Linear(hidden_size, hidden_size, false, base_name + names._attn_base_name + names._o_proj_name);
         post_oproj_dequantize = Dequantize(true, base_name + names._attn_base_name + names._o_proj_name + ".dequantize");
         post_oproj_view = View(1, 1, chunk_size, hidden_size, base_name + names._attn_base_name + names._o_proj_name + ".dequantize-00_view_");
         post_atten_res_add = Add(base_name + names._attn_base_name + "post_atten_add");
@@ -281,37 +276,36 @@ public:
         auto res = inputs[1];
 
         atten_output = pre_oproj_view(atten_output);
-        atten_output.printShape();
         atten_output = out_proj(atten_output);
-        auto float_oproj = post_oproj_dequantize(atten_output);
-        // auto float_oproj = post_oproj_view(atten_output);
+        atten_output = post_oproj_dequantize(atten_output);
+        atten_output = post_oproj_view(atten_output);
 
-        auto tmp = post_atten_res_add(float_oproj, res);
+        auto tmp = post_atten_res_add(atten_output, res);
 
         auto x = post_attn_layernorm(tmp);
 
         x = pre_mlp_quantize(x);
         // reshape to 32,2
-        // x = pre_mlp_view(x);
+        x = pre_mlp_view(x);
 
         auto gate_out = gate_proj(x);
         auto up_out = up_proj(x);
 
-        auto float_gate = post_gate_proj_dequantize(gate_out);
-        gate_out = silu(float_gate);
+        gate_out = post_gate_proj_dequantize(gate_out);
+        gate_out = silu(gate_out);
 
-        auto float_up_out = post_up_proj_dequantize(up_out);
-        gate_out = mlp_mul(gate_out, float_up_out);
+        up_out = post_up_proj_dequantize(up_out);
+        gate_out = mlp_mul(gate_out, up_out);
 
         gate_out = pre_down_proj_quantize(gate_out);
         gate_out = down_proj(gate_out);
         gate_out = post_down_proj_dequantize(gate_out);
 
         // reshape to 64,1
-        // gate_out = post_mlp_view(gate_out);
+        gate_out = post_mlp_view(gate_out);
 
-        auto after_res = post_mlp_res_add(gate_out, tmp);
-        return {after_res, float_gate, float_up_out, gate_out, float_oproj};
+        gate_out = post_mlp_res_add(gate_out, tmp);
+        return {gate_out};
     }
 };
 
@@ -462,10 +456,6 @@ public:
             k = q_k_v[1];
             v = q_k_v[2];
             res = inputs[0];
-
-            q.saveData<float>("-qnn");
-            k.saveData<float16_t>("-qnn");
-
             _SubgraphEnd_1(q_k_v);
         } else {
             auto q_k_v_res = (*part1)(inputs); // q,k,v,res
@@ -473,10 +463,6 @@ public:
             k = q_k_v_res[1];
             v = q_k_v_res[2];
             res = q_k_v_res[3];
-
-            q.saveData<float>("-qnn");
-            k.saveData<float16_t>("-qnn");
-
             _SubgraphEnd_1(q_k_v_res);
         }
 
@@ -489,11 +475,6 @@ public:
         if (layer_idx == num_layers - 1) {
             _SubgraphEnd_2(out_part2);
         }
-
-        out_part2[1].saveData<float16_t>("_qnn_gate");
-        out_part2[2].saveData<float16_t>("_qnn_gate");
-        out_part2[3].saveData<float>("_qnn_gate_GATE");
-        out_part2[4].saveData<float>("_qnn_gate");
 
         return out_part2;
     }
@@ -568,10 +549,6 @@ public:
             k = q_k_v[1];
             v = q_k_v[2];
             res = inputs[0];
-
-            q.saveData<float>("-qnn");
-            k.saveData<float16_t>("-qnn");
-
             _SubgraphEnd_1(q_k_v);
         } else {
             auto q_k_v_res = (*part1)(inputs); // q,k,v,res
@@ -579,10 +556,6 @@ public:
             k = q_k_v_res[1];
             v = q_k_v_res[2];
             res = q_k_v_res[3];
-
-            q.saveData<float>("-qnn");
-            k.saveData<float16_t>("-qnn");
-
             _SubgraphEnd_1(q_k_v_res);
         }
 
