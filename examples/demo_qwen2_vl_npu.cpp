@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen2-vl-i8-test.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen2-vl-w8-i8bias-128-xdl-test.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 2000);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
     string model_path = cmdParser.get<string>("model");
-    const string cpu_model_path = "../models/qwen-2-vl-2b-instruct-q4_k.mllm";
+    const string cpu_model_path = "../models/qwen-2-vl-2b-instruct-fp32.mllm";
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
     auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
     std::cout << output_string << std::flush;
 
-    exit(0);
+    // exit(0);
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 

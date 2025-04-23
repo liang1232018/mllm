@@ -213,7 +213,7 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
                                 }
 
 #else
-                                mllm_fp16_t origin_value = round_value * input_scale * weight_scale;
+                                float origin_value = round_value * input_scale * weight_scale;
                                 float clip_value = std::fmax(std::fmin(round_value, 127), -128) * input_scale * weight_scale;
 
 #pragma omp parallel for collapse(1) num_threads(4)

@@ -16,7 +16,7 @@
 
 using namespace mllm;
 
-std::set qwenvlShadowLayers = {2, 3, 4, 5, 6, 20, 21, 22, 23, 24, 25, 26, 27};
+std::set qwenvlShadowLayers = {1, 26};
 
 // NPU QKV part
 class QwenDecoderNPUPart1 : public Module {
@@ -63,8 +63,8 @@ public:
         v_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
         q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -120,8 +120,8 @@ public:
         v_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
         q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -168,7 +168,8 @@ public:
     QwenQKVmm() = default;
     QwenQKVmm(const Qwen2VLConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
-        num_heads = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
+        num_heads = config.num_attention_heads;
+        head_dim = config.hidden_size / num_heads;
 
         q_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "q_rope");
         k_rope = MultimodalRoPE(config.rope_theta, config.max_position_embeddings, config.mrope_section, base_name + "k_rope");
@@ -188,13 +189,12 @@ public:
         auto k = inputs[1];
         auto v = inputs[2];
 
-        // // PRINTDATA
-        q.saveData<float>("_qnn");
-        k.saveData<float16_t>("_qnn");
-        v.saveData<float16_t>("_qnn");
+        // k.saveData<float>(".fp32");
 
         q = q_rope(q, position_ids);
         k = k_rope(k, position_ids);
+
+        // k.saveData<float>(".fp32");
 
         k = k_cache(k);
         v = v_cache(v);
@@ -266,12 +266,12 @@ public:
 
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
-        pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
+        pre_mlp_view = View(1, 1, chunk_size, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
         silu = SiLU(mlp_base_name + "act");
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
-        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
+        post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
+        post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
         pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
@@ -289,9 +289,9 @@ public:
         atten_output = pre_oproj_view(atten_output);
         atten_output = out_proj(atten_output);
         atten_output = post_oproj_dequantize(atten_output);
-        atten_output = post_oproj_view(atten_output);
+        auto float_oproj = post_oproj_view(atten_output);
 
-        auto tmp = post_atten_res_add(atten_output, res);
+        auto tmp = post_atten_res_add(float_oproj, res);
 
         auto x = post_attn_layernorm(tmp);
 
@@ -303,20 +303,20 @@ public:
         auto up_out = up_proj(x);
 
         gate_out = post_gate_proj_dequantize(gate_out);
-        gate_out = silu(gate_out);
+        auto silu_out = silu(gate_out);
 
         up_out = post_up_proj_dequantize(up_out);
-        gate_out = mlp_mul(gate_out, up_out);
+        gate_out = mlp_mul(silu_out, up_out);
 
         gate_out = pre_down_proj_quantize(gate_out);
         gate_out = down_proj(gate_out);
         gate_out = post_down_proj_dequantize(gate_out);
 
         // reshape to 64,1
-        gate_out = post_mlp_view(gate_out);
+        auto float_gate_out = post_mlp_view(gate_out);
 
-        gate_out = post_mlp_res_add(gate_out, tmp);
-        return {gate_out};
+        gate_out = post_mlp_res_add(float_gate_out, tmp);
+        return {gate_out, float_oproj, silu_out, float_gate_out};
     }
 };
 
@@ -893,9 +893,9 @@ public:
         for (auto &block : blocks) {
             hidden_states = (*block)({hidden_states, position_ids})[0];
         }
-        return {hidden_states};
+        // return {hidden_states};
 
-        hidden_states.saveData<float>("_qnn");
+        // hidden_states.saveData<float>("_qnn");
 
         hidden_states = norm(hidden_states);
         if (tie_embedding_words) {
