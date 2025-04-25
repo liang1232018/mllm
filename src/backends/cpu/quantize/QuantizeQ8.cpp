@@ -27,7 +27,6 @@
 
 #include "QuantizeQ8.hpp"
 #include "Types.hpp"
-#include <arm_neon.h>
 #include <cstdint>
 
 void quantize_row_q8_0_reference(float *__restrict x, block_q8_0 *__restrict y, int k) {
@@ -586,6 +585,7 @@ void quantize_row_i16(const float *__restrict x, void *__restrict vy, int k, flo
 }
 
 void dequantize_row_i16(const void *__restrict vx, float *__restrict y, int k, float scale) {
+#if defined(__ARM_NEON)
     const int16_t *__restrict x = (int16_t *)vx;
 
     float32x4_t scale_vec = vdupq_n_f32(scale);
@@ -616,6 +616,9 @@ void dequantize_row_i16(const void *__restrict vx, float *__restrict y, int k, f
     for (; i < k; i++) {
         y[i] = x[i] * scale;
     }
+#else
+// TODO: avx
+#endif
 }
 
 // #endif
