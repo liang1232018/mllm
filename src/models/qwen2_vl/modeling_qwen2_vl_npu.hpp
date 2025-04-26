@@ -189,12 +189,8 @@ public:
         auto k = inputs[1];
         auto v = inputs[2];
 
-        // k.saveData<float>(".fp32");
-
         q = q_rope(q, position_ids);
         k = k_rope(k, position_ids);
-
-        // k.saveData<float>(".fp32");
 
         k = k_cache(k);
         v = v_cache(v);
@@ -461,11 +457,7 @@ public:
         if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
             x = input_layernorm(inputs[0]);
 
-            x.saveData<float>("_qnn");
-
             x = pre_attn_quantize(x);
-
-            x.saveIntData<int16_t>("_qnn");
 
             _SubgraphStart_1({x});
 
@@ -888,14 +880,9 @@ public:
         auto hidden_states = inputs[0];
         auto position_ids = inputs[1];
 
-        hidden_states.saveData<float>("_qnn");
-
         for (auto &block : blocks) {
             hidden_states = (*block)({hidden_states, position_ids})[0];
         }
-        // return {hidden_states};
-
-        // hidden_states.saveData<float>("_qnn");
 
         hidden_states = norm(hidden_states);
         if (tie_embedding_words) {
