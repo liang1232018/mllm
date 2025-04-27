@@ -148,6 +148,9 @@ Tensor &Tensor::to(BackendType backend_type) {
     // realloc the tensor
     if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
         this->free();
+        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+        this->setBackend(Backend::global_backends[backend_type]);
+        return *this;
     }
     if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
         module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
@@ -159,8 +162,7 @@ Tensor &Tensor::to(BackendType backend_type) {
         this->setBackend(Backend::global_backends[backend_type]);
         return *this;
     }
-    module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-    this->alloc();
+
     return *this;
 };
 
