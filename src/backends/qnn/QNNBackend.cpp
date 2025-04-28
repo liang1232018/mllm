@@ -912,7 +912,7 @@ StatusCode QNNBackend::retrieveQNNContext() {
 
     this->isFromCache = true;
 
-    MLLM_LOG_INFO_STREAM << "QNN context retrieved from qnn_context.bin" << std::endl;
+    MLLM_LOG_INFO_STREAM << "QNN context retrieved from qnn_context.bin";
     return returnStatus;
 }
 

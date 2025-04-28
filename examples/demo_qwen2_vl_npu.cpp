@@ -1,13 +1,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include "Parallel.hpp"
 #include "QNNBackend.hpp"
 #include "Timing.hpp"
 #include "Types.hpp"
 #include "cmdline.h"
 #include "models/qwen2_vl/configuration_qwen2_vl.hpp"
-#include "models/qwen2_vl/modeling_qwen2_vl.hpp"
 #include "models/qwen2_vl/modeling_qwen2_vl_npu.hpp"
 #include "models/qwen2_vl/processing_qwen2_vl.hpp"
 #include "processor/PostProcess.hpp"
@@ -29,6 +27,8 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
+    // NOTE: this chunk size is only for bus.png
+    // TODO: add a function to calculate the chunk size
     const int chunk_size = 65;
 
     Module::initBackend(MLLM_QNN);
@@ -42,6 +42,9 @@ int main(int argc, char **argv) {
     auto prefill_body = Qwen2VL_PrefillBody(config, chunk_size);
     prefill_embedding.load(cpu_model_path);
     prefill_body.load(model_path);
+
+    auto decoding_model = Qwen2VL_Decoding_Model(model_config);
+    decoding_model.load(cpu_model_path);
 
     vector<string> in_imgs = {
         "../assets/bus.png"};
@@ -68,56 +71,21 @@ int main(int argc, char **argv) {
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
-    // --------------- Pipeline ---------------
-    // auto merged_embd_warmup_tensor = Tensor(Backend::global_backends[MLLM_CPU]);
-    // merged_embd_warmup_tensor.setName("input0");
-    // merged_embd_warmup_tensor.reshape(1, 1, chunk_size, 1536);
-    // merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
-    // merged_embd_warmup_tensor.alloc();
-    // Tracer::trace(&prefill_body, {merged_embd_warmup_tensor, input_tensors.back()});
-
-    // std::cout << "after trace" << std::endl;
-
-    // {
-    //     std::cout << "[Q] " << in_str << std::endl;
-    //     std::cout << "[A] " << std::flush;
-
-    //     std::cout << "input size:" << input_tensors.size() << std::endl;
-
-    //     auto merged_embd = prefill_embedding(input_tensors);
-
-    //     std::cout << "after embedding" << std::endl;
-    //     // -------- Prefillling --------
-    //     // tensor vectors to save the chunked tensors of the QNN prefilling input
-    //     bool isSwitched = false;
-
-    //     ChunkPipeline pipeline(64, chunk_size);
-    //     LlmTextGeneratorOpts opt;
-    //     auto prefill_result = pipeline.run(merged_embd[0],
-    //                                        opt,
-    //                                        (*processor.tokenizer),
-    //                                        prefill_body,
-    //                                        isSwitched,
-    //                                        {&input_tensors[1], &input_tensors[2]});
-
-    //     Module::isMultiChunkPrefilling = true;
-    //     Module::isFirstChunk = false;
-    // }
-    // --------------- Pipeline ---------------
-
     for (auto &t : input_tensors) {
         t.setTtype(INPUT_TENSOR);
     }
+
+    // 1. get the vit embedding using CPU
     auto merged_embd = prefill_embedding(input_tensors);
 
+    // 2. QNN LLM Prefill
     auto start_time = mllm_time_ms();
-    // TODO: check if the input should not be created and should reuse the warmup tensor
+
     merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
     input_tensors.back().setTtype(INPUT_TENSOR);
     // copy the data from merged_embd[0] to merged_embd_warmup_tensor
     auto source = merged_embd[0].hostPtr<void>();
     auto dest = merged_embd_warmup_tensor.hostPtr<void>();
-    std::cout << "input of body: " << merged_embd_warmup_tensor.backend()->type() << std::endl;
     memcpy(dest, source, merged_embd[0].cntSize());
 
     auto result = prefill_body({merged_embd_warmup_tensor, input_tensors.back()});
@@ -130,23 +98,19 @@ int main(int argc, char **argv) {
     auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
     std::cout << output_string << std::flush;
 
-    // exit(0);
-
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(65);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
 
-    Qwen2VLModel model(model_config);
-    model.load(cpu_model_path);
-
+    // 3. CPU LLM Decoding
     for (auto &t : input_tensors) {
         t.setTtype(INPUT_TENSOR);
     }
     for (int step = 0; step < 100; step++) {
         prefill_embedding.get_position_ids(input_tensors);
 
-        auto result = model(input_tensors);
+        auto result = decoding_model(input_tensors);
         auto outputs = processor.detokenize(result[0]);
         auto out_string = outputs.first;
         auto out_token = outputs.second;

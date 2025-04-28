@@ -7,8 +7,6 @@
 #include "Types.hpp"
 #include "configuration_qwen2_vl.hpp"
 #include "models/qwen2_vl/modeling_qwen2_vl.hpp"
-// #include "models/qwen/modeling_qwen.hpp"
-#include <arm_neon.h>
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -892,6 +890,76 @@ public:
         }
         return {hidden_states};
     }
+};
+
+// CPU decoding model with only the LLM backbone
+class Qwen2VL_Decoding_Model final : public Module {
+    Layer embed_tokens;
+
+    vector<QWenDecoder> blocks;
+    Layer norm;
+    Parameter lm_head;
+    Layer lm_head_layer;
+
+    bool tie_embedding_words;
+
+    int64_t spatial_merge_size;
+    int64_t image_token_id;
+    int64_t video_token_id;
+    int64_t vision_start_token_id;
+
+public:
+    explicit Qwen2VL_Decoding_Model(const Qwen2VLConfig &config) {
+        auto vocab_size = config.vocab_size;
+        auto hidden_dim = config.hidden_size;
+        auto head_size = config.num_attention_heads;
+        auto ffn_hidden = config.intermediate_size;
+        auto projection_cls = config.projection_cls;
+        auto vision_embed_dim = config.vision_embed_dim;
+        image_token_id = config.image_token_id;
+        auto vision_names = config.vision_names_config;
+        auto qwen_names = config.names_config;
+        tie_embedding_words = config.tie_embedding_words;
+        spatial_merge_size = config.spatial_merge_size;
+        image_token_id = config.image_token_id;
+        video_token_id = config.video_token_id;
+        vision_start_token_id = config.vision_start_token_id;
+
+        embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
+
+        blocks = List<QWenDecoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
+        norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
+        if (tie_embedding_words) {
+            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
+        } else {
+            lm_head_layer = Linear(config.hidden_size, config.vocab_size, false, qwen_names.lm_head_name);
+        }
+    }
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        auto position_ids = inputs[3];
+
+        auto hidden_states = embed_tokens({inputs[0]});
+
+        for (auto &block : blocks) {
+            hidden_states = block({hidden_states, position_ids})[0];
+        }
+        hidden_states = norm(hidden_states);
+        if (tie_embedding_words) {
+            hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        } else {
+            hidden_states = lm_head_layer(hidden_states);
+        }
+        return {hidden_states};
+    }
+    void clear_kvcache() override {
+        for (auto &block : blocks) {
+            auto kvcahce = block.get_attention().get_cache();
+            for (auto &cache : kvcahce) {
+                cache->clearCache();
+            }
+        }
+    }
+
 };
 
 #endif // MODELING_QWEN2VL_NPU_HPP
