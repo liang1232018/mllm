@@ -9,6 +9,7 @@
 
 #include "op/CPUHeadLinear.hpp"
 #include "op/CPULinearInt8.hpp"
+#include "op/CPUMultimodalRoPEPipeline.hpp"
 #include "op/CPUNTKRoPE.hpp"
 #include "op/CPUPoEmbedding.hpp"
 #include "op/CPUSplitInput.hpp"
@@ -156,7 +157,11 @@ void CPUBackend::registerOps() {
     addCreator(MAXPOOL2D, (CPUBackend::Creator *)(new CPUMaxPoolCreator()));
     addCreator(CONVOLUTION3D, (CPUBackend::Creator *)(new CPUConvolution3DCreator()));
     addCreator(VISIONROPE, (CPUBackend::Creator *)(new CPUVisionRoPECreator()));
+#ifdef USE_QNN
+    addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPEPipelineCreator()));
+#else
     addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPECreator()));
+#endif
     // addCreator(CAT, (CPUBackend::Creator *)(new CPUCatCreator()));
     addCreator(TRANSPOSE, (CPUBackend::Creator *)(new CPUTransposeCreator()));
     addCreator(SUBDIM, (CPUBackend::Creator *)(new CPUSubDimCreator()));
