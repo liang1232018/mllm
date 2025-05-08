@@ -194,13 +194,32 @@ public:
     explicit Qwen2VLImageProcessor() {
     }
     vector<vector<token_id_t>> input_ids_;
-    pair<vector<vector<float>>, vector<int>> preprocess_images(const uint8_t * image, const size_t &image_length) {
+    pair<vector<vector<float>>, vector<int>> preprocess_images(const uint8_t *image, const size_t &image_length) {
         auto imageinfos = vector<ImageInfo>();
+        // int width, height, channels;
+        // auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 3);
+        // if (data == nullptr) {
+        //     MLLM_LOG_ERROR_STREAM << "Error: Failed to load image from memory." << std::endl;
+        //     exit(-1);
+        // }
         int width, height, channels;
-        auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 3);
+        auto data = stbi_load_from_memory(image, image_length, &width, &height, &channels, 0);
         if (data == nullptr) {
             MLLM_LOG_ERROR_STREAM << "Error: Failed to load image from memory." << std::endl;
             exit(-1);
+        }
+
+        // 如果是 ARGB 四通道，转换为 RGB 三通道
+        if (channels == 4) {
+            uint8_t *rgb_data = new uint8_t[width * height * 3];
+            for (int i = 0; i < width * height; ++i) {
+                rgb_data[i * 3 + 0] = data[i * 4 + 1]; // R
+                rgb_data[i * 3 + 1] = data[i * 4 + 2]; // G
+                rgb_data[i * 3 + 2] = data[i * 4 + 3]; // B
+            }
+            stbi_image_free(data); // 释放原始 ARGB 数据
+            data = rgb_data;       // 替换为 RGB 数据
+            channels = 3;          // 更新通道数
         }
         float *f32_data = nullptr;
         f32_data = PreProcessor::RescaleImage(data, 255, width * height * channels);
@@ -212,12 +231,12 @@ public:
         imageinfos.emplace_back(imageinfos[0]);
         vector<vector<vector<vector<float>>>> pixel_v;
         PreProcessor::ImageInfos2Pixels(imageinfos, pixel_v);
-        auto result_patches= convertPatches(pixel_v, 
-            temporal_patch_size,
-            patch_size,
-            merge_size,
-            imageinfos[0].height,  // resized_height
-            imageinfos[0].width  // resized_width
+        auto result_patches = convertPatches(pixel_v,
+                                             temporal_patch_size,
+                                             patch_size,
+                                             merge_size,
+                                             imageinfos[0].height, // resized_height
+                                             imageinfos[0].width   // resized_width
         );
         return result_patches;
     }
@@ -345,12 +364,12 @@ public:
         return tokenizer->detokenize(tokens);
     }
 
-    std::pair<std::string, unsigned> detokenize(Tensor &result) {
+    std::pair<std::string, unsigned> detokenize(Tensor &result, int seq = 0) {
         assert(result.batch() == 1 && "Batch size of result is not 1. Which is not supported for now.");
         assert(result.head() == 1 && "The 3rd dim of result should be one. e.g.:[1, 1, seq, hidden]");
         vector<float> scores;
         int _dims = result.dimension();
-        int _seq = result.sequence() - 1;
+        int _seq = seq == 0 ? result.sequence() - 1 : seq - 1;
         for (int i = 0; i < _dims; ++i) {
             auto value = result.dataAt<float>(0, 0, _seq, i);
             scores.push_back(value);
