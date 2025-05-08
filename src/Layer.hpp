@@ -226,6 +226,17 @@ protected:
                         }
                     }
                     next_name = layername_2_tensorname[layer_next_name];
+                } else if (layer_next_name.find("visual") != string::npos) {
+                    // QNN VLM trick: visual model use act tensor sharing
+                    if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
+                        if (param_["type"] == KVCACHE) {
+                            layername_2_tensorname[layer_next_name] = layer_next_name;
+                            init_reset_KVCache(inputs[0].name(), module);
+                        } else {
+                            layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                        }
+                    }
+                    next_name = layername_2_tensorname[layer_next_name];
                 } else {
                     next_name = layer_next_name;
                 }
@@ -239,7 +250,8 @@ protected:
             if (module->doLoad) {
                 vector<std::reference_wrapper<Tensor>> output_result = {};
                 for (const auto &layer_next_name : layer_next_names) {
-                    string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : layer_next_name;
+                    // QNN VLM trick: visual model use act tensor sharing
+                    string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
                     output_result.push_back(*activation_tensors[next_name]);
                 }
                 return output_result;
@@ -269,7 +281,8 @@ protected:
         }
         vector<shared_ptr<Tensor>> output_tensors = {};
         for (const auto &layer_next_name : layer_next_names) {
-            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : layer_next_name;
+            // QNN VLM trick: visual model use act tensor sharing
+            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
             output_tensors.push_back(activation_tensors[next_name]);
         }
 #ifdef DEBUGOPTIME
@@ -334,7 +347,8 @@ protected:
 #endif
         vector<std::reference_wrapper<Tensor>> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
-            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : layer_next_name;
+            // QNN VLM trick: visual model use act tensor sharing
+            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
 #ifdef DEBUGSAVETENSOR
             activation_tensors[next_name]->saveNData<float>(layer_next_name);
 #endif
