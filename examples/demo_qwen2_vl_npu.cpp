@@ -27,9 +27,9 @@ int main(int argc, char **argv) {
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
-    // NOTE: this chunk size is only for bus.png
+
     // TODO: add a function to calculate the chunk size
-    const int chunk_size = 65;
+    const int chunk_size = 256;
 
     Module::initBackend(MLLM_QNN);
 
@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
     decoding_model.load(cpu_model_path);
 
     vector<string> in_imgs = {
-        "../assets/bus.png"};
+        "../assets/showui.png"};
     vector<string> in_strs = {
         "<|vision_start|><|image_pad|><|vision_end|>Describe this image.",
     };
@@ -55,15 +55,25 @@ int main(int argc, char **argv) {
     auto &in_str = in_strs[0];
     in_str = processor.tokenizer->apply_chat_template(in_str);
     auto input_tensors = processor.process(in_str, in_imgs[0]);
-    prefill_embedding.get_position_ids(input_tensors);
 
-    // warm up
+    const int real_seq_length = input_tensors[0].sequence();
+    std::cout << "real seq length: " << real_seq_length << std::endl;
+
+    const int num_iter = (real_seq_length + chunk_size - 1) / chunk_size;
+    std::cout << "num_iter" << num_iter << std::endl;
+    // padding the position_ids to total chunk length(example: 256*2) for CPUMultimodalRoPEPipeline
+    prefill_embedding.get_position_ids(input_tensors, chunk_size * num_iter);
+
+    // warm up (still need a warm up as the setup stage is not omitted now)
     auto merged_embd_warmup_tensor = Tensor(Backend::global_backends[MLLM_QNN]);
     merged_embd_warmup_tensor.reshape(1, 1, chunk_size, 1536);
     merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
     merged_embd_warmup_tensor.alloc();
-    prefill_body({merged_embd_warmup_tensor, input_tensors.back()});
 
+    merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
+    input_tensors.back().setTtype(INPUT_TENSOR);
+    vector<Tensor> prefill_input = {merged_embd_warmup_tensor, input_tensors.back()};
+    prefill_body(prefill_input);
     std::cout << "after warm up" << std::endl;
 
     Module::isFirstChunk = false;
@@ -71,44 +81,71 @@ int main(int argc, char **argv) {
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
+    // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
+    // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
+
     for (auto &t : input_tensors) {
         t.setTtype(INPUT_TENSOR);
     }
 
     // 1. get the vit embedding using CPU
+    auto vit_start = mllm_time_ms();
     auto merged_embd = prefill_embedding(input_tensors);
+    auto vit_end = mllm_time_ms();
+    std::cout << "vit embedding: " << vit_end - vit_start << " ms" << std::endl;
+
+    // TODO: try to free prefill embedding tensor
 
     // 2. QNN LLM Prefill
-    auto start_time = mllm_time_ms();
+    unsigned int out_token = 0;
+    for (auto i = 0; i < num_iter; ++i) {
+        auto start_time = mllm_time_ms();
 
-    merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
-    input_tensors.back().setTtype(INPUT_TENSOR);
-    // copy the data from merged_embd[0] to merged_embd_warmup_tensor
-    auto source = merged_embd[0].hostPtr<void>();
-    auto dest = merged_embd_warmup_tensor.hostPtr<void>();
-    memcpy(dest, source, merged_embd[0].cntSize());
+        // copy the data from merged_embd[0] to merged_embd_warmup_tensor
+        auto source = merged_embd[0].ptrAt<float>(0, 0, chunk_size * i, 0);
+        auto dest = prefill_input[0].hostPtr<void>();
+        if (i == 0) {
+            memcpy(dest, source, prefill_input[0].cntSize());
+        }
+        {
+            memcpy(dest, source, (merged_embd[0].sequence() % chunk_size) * merged_embd[0].dimension() * sizeof(float));
+        }
 
-    auto result = prefill_body({merged_embd_warmup_tensor, input_tensors.back()});
-    auto end_time = mllm_time_ms();
-    std::cout << end_time - start_time << " ms" << std::endl;
+        auto result = prefill_body(prefill_input);
 
-    auto outputs = processor.detokenize(result[0]);
-    auto out_string = outputs.first;
-    auto out_token = outputs.second;
-    auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
-    std::cout << output_string << std::flush;
+        auto end_time = mllm_time_ms();
+        std::cout << end_time - start_time << " ms" << std::endl;
+
+        if (i == 0) { // turn off switching to avoid RoPE h_cnt_ reset to curSequenceLength in next chunk
+            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        }
+
+        if (i == 1) {
+            auto outputs = processor.detokenize(result[0], real_seq_length % chunk_size);
+            auto out_string = outputs.first;
+            out_token = outputs.second;
+            auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
+            std::cout << output_string << std::flush;
+        }
+    }
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(65);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(445);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 
     // 3. CPU LLM Decoding
-    for (auto &t : input_tensors) {
+    for (auto &t : input_tensors) { // set to INPUT_TENSOR to let decoding module update act
         t.setTtype(INPUT_TENSOR);
     }
+
+    const int last_position_id = input_tensors[3].dataAt<float>(0, 0, 0, real_seq_length - 1);
     for (int step = 0; step < 100; step++) {
-        prefill_embedding.get_position_ids(input_tensors);
+        // use the last position id(no padding position) in decoding
+        prefill_embedding.get_position_ids(input_tensors, 0, last_position_id + 1 + step);
 
         auto result = decoding_model(input_tensors);
         auto outputs = processor.detokenize(result[0]);
