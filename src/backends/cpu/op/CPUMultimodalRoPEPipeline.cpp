@@ -4,7 +4,6 @@
 #include "Types.hpp"
 #include <cassert>
 #include <cmath>
-#include <iostream>
 #include <memory>
 // #include <iostream>
 #include "backends/cpu/quantize/QuantizeQ8.hpp"
@@ -134,9 +133,15 @@ ErrorCode CPUMultimodalRoPEPipeline::reshape(vector<shared_ptr<Tensor>> inputs, 
     // if in switching, reset the h_cnt_
     auto cpuBackend = static_cast<CPUBackend*>(backend_);
     if (cpuBackend->isStageSwitching()) {
-        h_cnt_ = cpuBackend->getCurSequenceLength();
-    }
+        if(cpuBackend->getExecutionType() == PROMPT) {
+            // set to 0/chunk_size*iter when in prefill stage
+            h_cnt_ = cpuBackend->getCurSequenceLength();
+        } else {
+            // when switch to decoding, reset the h_cnt_ to 0
+            h_cnt_ = 0;
+        }
 
+    }
     return Op::reshape(inputs, outputs);
 }
 
@@ -145,9 +150,12 @@ void CPUMultimodalRoPEPipeline::multimodal_rope_hf(shared_ptr<Tensor> input, sha
     int partial_dimension = (input->dimension()) * partial_rotary_factor_;
     int half = (int)(partial_dimension / 2);
     assert(partial_dimension % 2 == 0);
-    // TODO: multi chunk seq offset when in Prefill stage
+
     const int seq_offset = h_cnt_;
-    h_cnt_ += input->sequence();
+    if (static_cast<CPUBackend *>(backend_)->getExecutionType() == PROMPT) {
+        // increment the h_cnt_ when in prefill stage
+        h_cnt_ += input->sequence();
+    }
 
     if (output->ctype() == BSHD) {
         if (input->dtype() == MLLM_TYPE_F16) {
