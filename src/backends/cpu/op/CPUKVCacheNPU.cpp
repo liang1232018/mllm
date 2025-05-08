@@ -11,7 +11,7 @@ CPUKVCacheNPU::CPUKVCacheNPU(Backend *bn, string opName, int n_rep, int cache_ma
     cache_.setBackend(bn);
 
     // TODO: Chaning it to FP16
-    cache_.setDtype(MLLM_TYPE_F32);
+    cache_.setDtype(MLLM_TYPE_F16);
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
 }
