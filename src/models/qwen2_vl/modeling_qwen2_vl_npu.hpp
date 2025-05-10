@@ -15,7 +15,7 @@
 
 using namespace mllm;
 
-std::set qwenvlShadowLayers = {1, 26};
+std::set qwenvlShadowLayers = {100};
 
 // NPU QKV part
 class QwenDecoderNPUPart1 : public Module {
@@ -53,9 +53,9 @@ public:
 
         pre_attn_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
 
         q_view = View(1, num_heads, chunk_size, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._k_proj_name + "-00_view_");
@@ -110,9 +110,9 @@ public:
 
         pre_attn_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
 
         q_view = View(1, num_heads, chunk_size, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._k_proj_name + "-00_view_");
@@ -190,6 +190,10 @@ public:
         auto k = inputs[1];
         auto v = inputs[2];
 
+        q.saveData<float>(".float");
+        k.saveData<__fp16>(".float");
+        v.saveData<__fp16>(".float");
+
         q = q_rope(q, position_ids);
         k = k_rope(k, position_ids);
 
@@ -197,6 +201,7 @@ public:
         v = v_cache(v);
 
         auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        qk = qk / std::sqrt(head_dim);
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
 
@@ -460,9 +465,16 @@ public:
 
         Tensor x, q, k, v, res;
         if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
+            
+            x.saveData<float>(".float");
+
             x = input_layernorm(inputs[0]);
 
+            x.saveData<float>(".float");
+
             x = pre_attn_quantize(x);
+
+            x.saveIntData<int16_t>(".int16");
 
             _SubgraphStart_1({x});
 
