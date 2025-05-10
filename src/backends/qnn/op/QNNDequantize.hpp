@@ -16,6 +16,7 @@ private:
     bool isNSHD_;
     bool isFP32_;
     Tensor scale_;
+    Tensor bias_;
 };
 
 class QNNDequantizeCreator : public QNNBackend::Creator {

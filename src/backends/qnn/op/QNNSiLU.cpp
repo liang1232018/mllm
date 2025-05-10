@@ -1,4 +1,3 @@
-
 #include "QNNSiLU.hpp"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
@@ -31,6 +30,26 @@ ErrorCode QNNSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
         outputs[0]->setDtype(MLLM_TYPE_F16);
     }
 
+    // add sigmoid node
+    auto sigmoidName = name() + "-sigmoid";
+    vector<Qnn_Tensor_t> outputSigmoid{
+        {QNN_TENSOR_VERSION_1,
+         {.v1 = {
+              .id = 0,
+              .name = sigmoidName.c_str(),
+              .type = QNN_TENSOR_TYPE_NATIVE,
+              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+              .dataType = type,
+              .quantizeParams = {QNN_DEFINITION_UNDEFINED,
+                                 QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
+                                 {.scaleOffsetEncoding = {.scale = 0, .offset = 0}}},
+              .rank = 4,
+              .dimensions = dimensionsOutput,
+              .memType = QNN_TENSORMEMTYPE_RAW,
+              .clientBuf = {.data = nullptr,
+                            .dataSize = 0}}}}};
+    graphAddNode(name() + "-sigmoid", "Sigmoid", {inputs[0]->name()}, outputSigmoid);
+
     vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                           {.v1 = {
                                                .id = 0,
@@ -47,6 +66,6 @@ ErrorCode QNNSiLU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
                                                .memType = QNN_TENSORMEMTYPE_RAW,
                                                .clientBuf = {.data = nullptr,
                                                              .dataSize = 0}}}}};
-    return graphAddNode(name(), "SiLU", {inputs[0]->name()}, outputTensor, {}, "LLaMAPackage");
+    return graphAddNode(name(), "LLaMAMul", {sigmoidName, inputs[0]->name()}, outputTensor, {}, "LLaMAPackage");
 }
 } // namespace mllm

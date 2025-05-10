@@ -154,7 +154,7 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
     if (!support_bias_) {
         float outputScale = 0;
         outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
-        outputScale = roundf(outputScale * 100000) / 100000;
+        // outputScale = roundf(outputScale * 100000) / 100000;
 
         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                            {.v1 = {
@@ -209,7 +209,7 @@ ErrorCode QNNLinearINT8::setUpW8A8(vector<shared_ptr<Tensor>> &inputs, vector<sh
 
     float outputScale = 0;
     outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
-    outputScale = roundf(outputScale * 100000) / 100000;
+    // outputScale = roundf(outputScale * 100000) / 100000;
 
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,
@@ -336,7 +336,7 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
     if (!support_bias_) {
         float outputScale = 0;
         outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
-        outputScale = roundf(outputScale * 100000) / 100000;
+        // outputScale = roundf(outputScale * 100000) / 100000;
 
         vector<Qnn_Tensor_t> matmulOut = {{QNN_TENSOR_VERSION_1,
                                            {.v1 = {
@@ -393,7 +393,7 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
 
     float outputScale = 0;
     outputScale = outputScale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
-    outputScale = roundf(outputScale * 100000) / 100000;
+    // outputScale = roundf(outputScale * 100000) / 100000;
 
     // final output
     vector<Qnn_Tensor_t> biasOutput = {{QNN_TENSOR_VERSION_1,

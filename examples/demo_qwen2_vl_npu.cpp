@@ -13,9 +13,9 @@
 using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen2-vl-w8-i8bias-128-xdl-test.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-w8-fpbias-noshadow-xdl-test.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1000);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
     string model_path = cmdParser.get<string>("model");
-    const string cpu_model_path = "../models/qwen-2-vl-2b-instruct-q4_k.mllm";
+    const string cpu_model_path = "../models/showui-2B-rotated-q40.mllm";
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     vector<string> in_imgs = {
         "../assets/showui.png"};
     vector<string> in_strs = {
-        "<|vision_start|><|image_pad|><|vision_end|>Describe this image.",
+        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
     };
 
     auto &in_str = in_strs[0];
@@ -129,11 +129,14 @@ int main(int argc, char **argv) {
             auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
             std::cout << output_string << std::flush;
         }
+
+        // std::cout << i << " iter" << std::endl;
+        // exit(0);
     }
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(445);
+    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
 

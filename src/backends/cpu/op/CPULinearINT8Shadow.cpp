@@ -155,9 +155,9 @@ ErrorCode CPULinearINT8Shadow::execute(vector<shared_ptr<Tensor>> inputs, vector
     int8_t output_clip = outputClip_.dataAt<int8_t>(0, 0, 0, 0);
 
     input_scale = input_scale / 127.0;
-    input_scale = roundf(input_scale * 100000) / 100000;
+    // input_scale = roundf(input_scale * 100000) / 100000;
 
-    output_scale = roundf(output_scale * 100000) / 100000;
+    // output_scale = roundf(output_scale * 100000) / 100000;
 
     memcpy(outputs[0]->hostPtr<float>(), inputs[2]->hostPtr<float>(), inputs[2]->cntSize());
 

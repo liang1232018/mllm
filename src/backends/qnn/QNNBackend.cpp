@@ -342,7 +342,8 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             }
             scaleTensor.setName(scaleName);
             loader->load(&scaleTensor);
-            scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1) * 100000) / 100000;
+            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1) * 100000) / 100000;
+            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1);
             scaleTensor.free();
 
             break;
@@ -392,7 +393,8 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             }
             scaleTensor.setName(scaleName);
             loader->load(&scaleTensor);
-            scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1) * 100000) / 100000;
+            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1) * 100000) / 100000;
+            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1);
             scaleTensor.free();
 
             break;

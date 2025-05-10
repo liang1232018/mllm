@@ -47,7 +47,10 @@ ErrorCode CPUQuantize::execute(vector<shared_ptr<Tensor>> inputs, vector<shared_
     default:
         return NOT_SUPPORT;
     }
-    quantScale = roundf(quantScale * 100000) / 100000;
+    // quantScale = roundf(quantScale * 100000) / 100000;
+
+    std::cout << name() << std::endl;
+    std::cout<< scale_.hostPtr<float>()[0] << std::endl;
 
     auto src0 = inputs[0];
     auto out0 = outputs[0];
