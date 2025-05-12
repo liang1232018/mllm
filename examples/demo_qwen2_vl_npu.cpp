@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
-    Qwen2VLConfig config(tokens_limit, "1.5b");
+    Qwen2VLConfig config(tokens_limit, "1.5b-rotated");
     auto model_config = Qwen2VLConfig(config);
 
     auto prefill_embedding = Qwen2VL_ImagePatchAndEmbedding(config);
