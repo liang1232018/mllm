@@ -9,6 +9,7 @@
 #include "models/qwen2_vl/modeling_qwen2_vl_npu.hpp"
 #include "models/qwen2_vl/processing_qwen2_vl.hpp"
 #include "processor/PostProcess.hpp"
+#include "memory/MemInspect.hpp"
 
 using namespace mllm;
 int main(int argc, char **argv) {
@@ -96,7 +97,20 @@ int main(int argc, char **argv) {
     auto vit_end = mllm_time_ms();
     std::cout << "vit embedding: " << vit_end - vit_start << " ms" << std::endl;
 
-    // TODO: try to free prefill embedding tensor
+    // free prefill embedding tensor, approximately free 1GB for 59ms
+    auto begin_free = mllm_time_ms();
+    auto& embedding_act = prefill_embedding.activation_tensors;
+    // go through the activation tensors to get the merged_embd
+    for (auto iter = embedding_act.begin(); iter != embedding_act.end(); ++iter) {
+        std::cout << iter->first << std::endl;
+        if (iter->first.find("input") != std::string::npos || iter->first.find("index_put") != std::string::npos) {
+            continue;
+        }
+        iter->second->free();
+    }
+    auto end_free = mllm_time_ms();
+    std::cout << "free time: " << end_free - begin_free << " ms" << std::endl;
+
 
     // 2. QNN LLM Prefill
     unsigned int out_token = 0;
