@@ -190,10 +190,6 @@ public:
         auto k = inputs[1];
         auto v = inputs[2];
 
-        q.saveData<float>(".float");
-        k.saveData<__fp16>(".float");
-        v.saveData<__fp16>(".float");
-
         q = q_rope(q, position_ids);
         k = k_rope(k, position_ids);
 
@@ -465,16 +461,10 @@ public:
 
         Tensor x, q, k, v, res;
         if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
-            
-            x.saveData<float>(".float");
 
             x = input_layernorm(inputs[0]);
 
-            x.saveData<float>(".float");
-
             x = pre_attn_quantize(x);
-
-            x.saveIntData<int16_t>(".int16");
 
             _SubgraphStart_1({x});
 
