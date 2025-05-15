@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 
     // free prefill embedding tensor, approximately free 1GB for 59ms
     auto begin_free = mllm_time_ms();
-    auto& embedding_act = prefill_embedding.activation_tensors;
+    auto &embedding_act = prefill_embedding.activation_tensors;
     // go through the activation tensors to get the merged_embd
     for (auto iter = embedding_act.begin(); iter != embedding_act.end(); ++iter) {
         std::cout << iter->first << std::endl;
@@ -111,12 +111,10 @@ int main(int argc, char **argv) {
     auto end_free = mllm_time_ms();
     std::cout << "free time: " << end_free - begin_free << " ms" << std::endl;
 
-
     // 2. QNN LLM Prefill
     unsigned int out_token = 0;
+    auto start_time = mllm_time_ms();
     for (auto i = 0; i < num_iter; ++i) {
-        auto start_time = mllm_time_ms();
-
         // copy the data from merged_embd[0] to merged_embd_warmup_tensor
         auto source = merged_embd[0].ptrAt<float>(0, 0, chunk_size * i, 0);
         auto dest = prefill_input[0].hostPtr<void>();
@@ -129,23 +127,20 @@ int main(int argc, char **argv) {
 
         auto result = prefill_body(prefill_input);
 
-        auto end_time = mllm_time_ms();
-        std::cout << end_time - start_time << " ms" << std::endl;
-
         if (i == 0) { // turn off switching to avoid RoPE h_cnt_ reset to curSequenceLength in next chunk
             static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
         }
 
         if (i == 1) {
+            auto end_time = mllm_time_ms();
+            std::cout << "Prefill:" << end_time - start_time << " ms" << std::endl;
+
             auto outputs = processor.detokenize(result[0], real_seq_length % chunk_size);
             auto out_string = outputs.first;
             out_token = outputs.second;
             auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
             std::cout << output_string << std::flush;
         }
-
-        // std::cout << i << " iter" << std::endl;
-        // exit(0);
     }
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});

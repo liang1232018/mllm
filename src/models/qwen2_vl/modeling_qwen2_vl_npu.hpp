@@ -15,6 +15,7 @@
 
 using namespace mllm;
 
+// current version of showui/qwen2-vl don't need shadow layers
 std::set qwenvlShadowLayers = {100};
 
 // NPU QKV part
@@ -461,7 +462,6 @@ public:
 
         Tensor x, q, k, v, res;
         if (layer_idx == 0 || qwenvlShadowLayers.find(layer_idx - 1) != qwenvlShadowLayers.end()) {
-
             x = input_layernorm(inputs[0]);
 
             x = pre_attn_quantize(x);
@@ -681,7 +681,7 @@ private:
         for (int b = 0; b < input_ids.batch(); b++) {
             attention_mask.emplace_back(attention_mask_shape, 1);
         }
-        const size_t batch_size = input_ids.batch();                      // input_ids.size();
+        const size_t batch_size = input_ids.batch(); // input_ids.size();
 
         // NOTE: changed from original
         const size_t seq_len = batch_size > 0 ? (padding_to > input_ids.sequence() ? padding_to : input_ids.sequence()) : 0; // batch_size > 0 ? input_ids[0].size() : 0;
@@ -879,11 +879,11 @@ public:
 
         blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(config.num_hidden_layers, config, qwen_names, chunk_size, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
-        // if (tie_embedding_words) {
-        //     lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
-        // } else {
+        if (tie_embedding_words) {
+            lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
+        } else {
             lm_head_layer = HeadLinear(config.hidden_size, config.vocab_size, false, qwen_names.lm_head_name);
-        // }
+        }
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -905,11 +905,11 @@ public:
 
         // TODO: remove it
         auto start_time = mllm_time_ms();
-        // if (tie_embedding_words) {
-        //     hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
-        // } else {
+        if (tie_embedding_words) {
+            hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        } else {
             hidden_states = lm_head_layer(hidden_states);
-            // }
+        }
         // TODO: remove it
         auto end_time = mllm_time_ms();
         std::cout << "-----------------" << "lm_head time: " << end_time - start_time << "ms" << std::endl;
@@ -984,7 +984,6 @@ public:
             }
         }
     }
-
 };
 
 #endif // MODELING_QWEN2VL_NPU_HPP
