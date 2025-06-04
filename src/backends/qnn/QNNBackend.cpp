@@ -84,6 +84,7 @@ void QNNBackend::registerOps() {
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
     addCreator(OP_GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
+    addCreator(QUICKGLUE, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));

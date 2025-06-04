@@ -18,6 +18,9 @@ ErrorCode QNNGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
 
 ErrorCode QNNGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     //Todo: gelu do not supprt signed fix int8
+    for(int i = 0; i < inputs.size(); ++i) {
+        outputs[i]->setDtype(inputs[i]->dtype());
+    }
     return graphAddNode(name(), "Gelu", inputs, outputs, {}, "qti.aisw", true, &scale_);
 }
 
