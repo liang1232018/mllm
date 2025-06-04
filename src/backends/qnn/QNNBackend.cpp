@@ -34,6 +34,7 @@
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
+#include "op/QNNSplit.hpp"
 #include "op/QNNSubGraphFinalize.hpp"
 #include "op/QNNSubGraphStart.hpp"
 #include "op/QNNView.hpp"
@@ -91,6 +92,8 @@ void QNNBackend::registerOps() {
     addCreator(SUPERSILU, (QNNBackend::Creator *)(new QNNSuperSiLUCreator()));
     addCreator(SUBGRAPHSTART, (QNNBackend::Creator *)(new QNNSubGraphStartCreator()));
     addCreator(SUBGRAPHFINALIZE, (QNNBackend::Creator *)(new QNNSubGraphFinalizeCreator()));
+    addCreator(SPLIT, (QNNBackend::Creator *)(new QNNSplitCreator()));
+
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
