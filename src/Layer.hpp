@@ -606,7 +606,7 @@ class RoPE final : public Layer {
 public:
     RoPE() = default;
 
-    explicit RoPE(int pose_type, const RoPEConfig & config, std::string name) {
+    explicit RoPE(int pose_type, const RoPEConfig &config, std::string name) {
         param_["pose_type"] = pose_type;
         auto it_rope_theta = config.find("rope_theta");
         if (it_rope_theta != config.end()) {
@@ -1108,6 +1108,48 @@ public:
         auto ts = run(inputs, 1);
         Module::tmp_device = MLLM_CPU;
         return ts[0].get();
+    }
+};
+
+class Split final : public Layer {
+public:
+    Split() = default;
+
+    explicit Split(int split_num, Chl split_dim, int split_dim_size, std::string name) {
+        param_["split_num"] = (float)split_num;
+        param_["split_dim"] = (float)split_dim;
+        param_["split_dim_size"] = (float)split_dim_size;
+        init(std::move(name), OpType::SPLIT);
+    }
+
+    // explicit Split(const std::vector<int> &each_dims, Chl split_dim, const std::string &name) {
+    //     param_["split_num"] = (float)each_dims.size();
+    //     param_["split_dim"] = (float)split_dim;
+    //     // store each dims
+    //     for (size_t i = 0; i < each_dims.size(); ++i) {
+    //         param_["split_dim_size_" + std::to_string(i)] = (float)each_dims[i];
+    //     }
+    //     init(std::move(name), OpType::SPLIT);
+    // }
+
+    vector<std::reference_wrapper<Tensor>> operator()(Tensor &input) {
+        return run({input}, (int)param_["split_num"]);
+    }
+};
+
+class Scale final : public Layer {
+public:
+    Scale() = default;
+
+    explicit Scale(float scale, float bias, bool bias_after_scale, std::string name) {
+        param_["scale"] = (float)scale;
+        param_["bias"] = (float)bias;
+        param_["bias_after_scale"] = (float)bias_after_scale;
+        init(std::move(name), OpType::SCALE);
+    }
+
+    vector<std::reference_wrapper<Tensor>> operator()(Tensor &input) {
+        return run({input}, 1);
     }
 };
 
