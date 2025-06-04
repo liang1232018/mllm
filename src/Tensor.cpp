@@ -147,9 +147,19 @@ Tensor &Tensor::to(BackendType backend_type) {
     }
     // realloc the tensor
     if (backend_type == MLLM_QNN && device() == MLLM_CPU) {
-        this->free();
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->setBackend(Backend::global_backends[backend_type]);
+        if (this->masterTensor() != nullptr) {
+            auto master_tensor = this->masterTensor();
+            master_tensor->free();
+            master_tensor->to(MLLM_QNN);
+            master_tensor->alloc();
+            for (auto &child_tensor : master_tensor->childTensors()) {
+                child_tensor->host_ptr_ = master_tensor->host_ptr_;
+            }
+        } else {
+            this->free();
+            module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
+            this->setBackend(Backend::global_backends[backend_type]);
+        }
         return *this;
     }
     if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {

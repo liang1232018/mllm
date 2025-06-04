@@ -17,6 +17,11 @@ ErrorCode QNNSubGraphStart::setUp(vector<shared_ptr<Tensor>> inputs, vector<shar
     for(auto input : inputs) {
         input->to(MLLM_QNN);
         input->alloc();
+        if (!input->childTensors().empty()) {
+            for (auto &child_tensor : input->childTensors()) {
+                child_tensor->shallowCopyFrom(input.get(), false);
+            }
+        }
     }
 
     this->backend_->onSetUpStart(inputs, outputs, name_);
