@@ -30,6 +30,7 @@ DECLARE_PKG_OPS_OPTS_LIST(PKG_SiLU)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_Attention)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_QLayerNorm)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPE)
+DECLARE_PKG_OPS_OPTS_LIST(PKG_RoPESimple)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_WNop)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_LLaMAAdd)
 DECLARE_PKG_OPS_OPTS_LIST(PKG_IRoPE)
@@ -45,7 +46,7 @@ END_PKG_OPS_OPTS_LIST()
 // op package info
 static constexpr auto sg_packageName = THIS_PKG_NAME_STR;  // package name passed in as compile flag
 
-static std::array<const char*, 20> sg_opNames{{"RMSNorm", "KVCache", "LLaMADequantizeAdd", "LLaMAMul", "MergeOutput", "LLaMAReLU", "CausalMask", "SiLU", "Attention", "QLayerNorm", "RoPE", "WNop", "LLaMAAdd", "IRoPE", "LLaMALinear", "SplitInput", "HeadMatmul", "LLaMADequantize", "LLaMASuperSiLU", "LLaMAQuantize"}};
+static std::array<const char *, 21> sg_opNames{{"RMSNorm", "KVCache", "LLaMADequantizeAdd", "LLaMAMul", "MergeOutput", "LLaMAReLU", "CausalMask", "SiLU", "Attention", "QLayerNorm", "RoPE", "RoPESimple", "WNop", "LLaMAAdd", "IRoPE", "LLaMALinear", "SplitInput", "HeadMatmul", "LLaMADequantize", "LLaMASuperSiLU", "LLaMAQuantize"}};
 
 static Qnn_ApiVersion_t sg_sdkApiVersion  = QNN_HTP_API_VERSION_INIT;
 static QnnOpPackage_Info_t sg_packageInfo = QNN_OP_PACKAGE_INFO_INIT;
@@ -281,6 +282,11 @@ Qnn_ErrorHandle_t LLaMAPackageValidateOpConfig (Qnn_OpConfig_t opConfig){
     }
     else if (std::string(opConfig.v1.typeName) == "RoPE"){
         if (opConfig.v1.numOfParams != 1 || opConfig.v1.numOfInputs != 4 || opConfig.v1.numOfOutputs != 1){
+          return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
+        }
+    }
+    else if (std::string(opConfig.v1.typeName) == "RoPESimple"){
+        if (opConfig.v1.numOfInputs != 3 || opConfig.v1.numOfOutputs != 1){
           return QNN_OP_PACKAGE_ERROR_VALIDATION_FAILURE;
         }
     }

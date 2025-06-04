@@ -671,6 +671,15 @@ public:
     }
 };
 
+class RoPESimple final : public Layer {
+public:
+    RoPESimple() = default;
+    explicit RoPESimple(int pose_type, std::string name) {
+        param_["pose_type"] = pose_type;
+        init(std::move(name), OpType::ROPESIMPLE);
+    }
+};
+
 class IRoPE final : public Layer {
 public:
     IRoPE() = default;
@@ -838,6 +847,32 @@ public:
         param_["dim"] = (float)dim_size;
         param_["spatial_merge_size"] = (float)spatial_merge_size;
         init(std::move(name), OpType::VISIONROPE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class VisionRoPESin final : public Layer {
+public:
+    explicit VisionRoPESin(int dim_size, int spatial_merge_size, std::string name) {
+        param_["dim"] = (float)dim_size;
+        param_["spatial_merge_size"] = (float)spatial_merge_size;
+        init(std::move(name), OpType::VISIONROPESIN);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class VisionRoPECos final : public Layer {
+public:
+    explicit VisionRoPECos(int dim_size, int spatial_merge_size, std::string name) {
+        param_["dim"] = (float)dim_size;
+        param_["spatial_merge_size"] = (float)spatial_merge_size;
+        init(std::move(name), OpType::VISIONROPECOS);
     }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
@@ -1069,7 +1104,7 @@ public:
         init(name, OpType::SUBGRAPHFINALIZE);
     }
 
-    Tensor &operator()(vector<Tensor> &inputs) {
+    Tensor &operator()(vector<Tensor> inputs) {
         auto ts = run(inputs, 1);
         Module::tmp_device = MLLM_CPU;
         return ts[0].get();

@@ -30,6 +30,7 @@
 #include "op/QNNLayerNorm.hpp"
 #include "op/QNNRMSNorm.hpp"
 #include "op/QNNRoPE.hpp"
+#include "op/QNNRoPESimple.hpp"
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
 #include "op/QNNSoftMax.hpp"
@@ -71,6 +72,7 @@ void QNNBackend::registerOps() {
     addCreator(RMSNORM, (QNNBackend::Creator *)(new QNNRMSNormCreator()));
     addCreator(LAYERNORM, (QNNBackend::Creator *)(new QNNLayerNormCreator()));
     addCreator(ROPE, (QNNBackend::Creator *)(new QNNRoPECreator()));
+    addCreator(ROPESIMPLE, (QNNBackend::Creator *)(new QNNRoPESimpleCreator()));
     addCreator(IROPE, (QNNBackend::Creator *)(new QNNIRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
@@ -341,7 +343,12 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                 scaleName += ".input_scale";
             }
             scaleTensor.setName(scaleName);
-            loader->load(&scaleTensor);
+            if (loader != nullptr) {
+                loader->load(&scaleTensor);
+            } else {
+                MLLM_LOG_ERROR_STREAM << "[ERROR] QNNBackend::graphSetUp: loader is nullptr" << std::endl;
+            }
+            
             // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1) * 100000) / 100000;
             scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1);
             scaleTensor.free();
@@ -392,7 +399,11 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                 scaleName += ".input_scale";
             }
             scaleTensor.setName(scaleName);
-            loader->load(&scaleTensor);
+            if (loader != nullptr) {
+                loader->load(&scaleTensor);
+            } else {
+                MLLM_LOG_ERROR_STREAM << "[ERROR] QNNBackend::graphSetUp: loader is nullptr" << std::endl;
+            }
             // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1) * 100000) / 100000;
             scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1);
             scaleTensor.free();
