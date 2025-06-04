@@ -187,8 +187,8 @@ protected:
                 op_ = backend_->opCreate(param_, name_);
 #endif
             }
-            if(param_["type"] == SUBGRAPHFINALIZE) {
-                for(auto& input : inputs) {
+            if (param_["type"] == SUBGRAPHFINALIZE) {
+                for (auto &input : inputs) {
                     activation_tensors[input.name()]->setTtype(GRAPH_OUTPUT);
                 }
             }
@@ -226,7 +226,7 @@ protected:
                         }
                     }
                     next_name = layername_2_tensorname[layer_next_name];
-                } else if (layer_next_name.find("visual") != string::npos) {
+                } else if (layer_next_name.find("no-visual") != string::npos) {
                     // QNN VLM trick: visual model use act tensor sharing
                     if (layername_2_tensorname.find(layer_next_name) == layername_2_tensorname.end()) {
                         if (param_["type"] == KVCACHE) {
@@ -251,7 +251,7 @@ protected:
                 vector<std::reference_wrapper<Tensor>> output_result = {};
                 for (const auto &layer_next_name : layer_next_names) {
                     // QNN VLM trick: visual model use act tensor sharing
-                    string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
+                    string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("no-visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
                     output_result.push_back(*activation_tensors[next_name]);
                 }
                 return output_result;
@@ -282,7 +282,7 @@ protected:
         vector<shared_ptr<Tensor>> output_tensors = {};
         for (const auto &layer_next_name : layer_next_names) {
             // QNN VLM trick: visual model use act tensor sharing
-            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
+            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("no-visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
             output_tensors.push_back(activation_tensors[next_name]);
         }
 #ifdef DEBUGOPTIME
@@ -304,7 +304,7 @@ protected:
             op_->execute(input_tensors, output_tensors);
             break;
         }
-        case TENSOR_STATIC_TRACE : {
+        case TENSOR_STATIC_TRACE: {
             if (backend_->type() == BackendType::MLLM_CPU) {
                 Tracer::addOp(op_, input_tensors, output_tensors);
             } else if (param_["type"] == SUBGRAPHSTART) { // begin of QNN graph
@@ -332,7 +332,7 @@ protected:
                     }
                     }
                     if (activation_tensors_num[input_tensor->name()] == 0 && activation_tensors[input_tensor->name()]->sequence() > 1
-                        && activation_tensors[input_tensor->name()]->ttype()!= GRAPH_OUTPUT) {
+                        && activation_tensors[input_tensor->name()]->ttype() != GRAPH_OUTPUT) {
                         // TODO: handle tensor free
                         // activation_tensors[input_tensor->name()]->free();
                         // std::cout << input_tensor->name() << "|" << std::endl;
@@ -349,7 +349,7 @@ protected:
         vector<std::reference_wrapper<Tensor>> output_result = {};
         for (const auto &layer_next_name : layer_next_names) {
             // QNN VLM trick: visual model use act tensor sharing
-            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
+            string next_name = use_layername_2_tensorname ? layername_2_tensorname[layer_next_name] : (layer_next_name.find("no-visual") != string::npos ? layername_2_tensorname[layer_next_name] : layer_next_name);
 #ifdef DEBUGSAVETENSOR
             activation_tensors[next_name]->saveNData<float>(layer_next_name);
 #endif
