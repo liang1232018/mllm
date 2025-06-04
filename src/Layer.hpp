@@ -926,17 +926,6 @@ public:
     }
 };
 
-
-
-
-
-
-
-
-
-
-
-
 //  Only for QNN START
 
 class Quantize final : public Layer {
@@ -974,6 +963,21 @@ public:
         param_["isFP32"] = (float)isFP32;
         param_["inType"] = (float)inType;
         init(std::move(name), OpType::DEQUANTIZE);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
+class DequantizeAdd final : public Layer {
+public:
+    explicit DequantizeAdd(bool isNSHD, int out_features, std::string name, bool isFP32 = true, DataType inType = MLLM_TYPE_I8) {
+        param_["isNSHD"] = (float)isNSHD;
+        param_["out_features"] = out_features;
+        param_["isFP32"] = (float)isFP32;
+        param_["inType"] = (float)inType;
+        init(std::move(name), OpType::DEQUANTIZEADD);
     }
     Tensor &operator()(Tensor &input) {
         auto ts = run({input}, 1);
