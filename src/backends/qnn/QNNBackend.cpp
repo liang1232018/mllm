@@ -23,6 +23,7 @@
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
 #include "op/QNNCausalMask.hpp"
+#include "op/QNNDequantizeAdd.hpp"
 #include "op/QNNGELU.hpp"
 #include "op/QNNLinearINT8.hpp"
 #include "op/QNNMatmul.hpp"
@@ -87,6 +88,7 @@ void QNNBackend::registerOps() {
     addCreator(QUICKGLUE, (QNNBackend::Creator *)(new QNNGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
+    addCreator(DEQUANTIZEADD, (QNNBackend::Creator *)(new QNNDequantizeAddCreator()));
     addCreator(MERGEOUTPUT, (QNNBackend::Creator *)(new QNNMergeOutputCreator()));
     addCreator(SPLITINPUT, (QNNBackend::Creator *)(new QNNSplitInputCreator()));
     addCreator(TRANSPOSE, (QNNBackend::Creator *)(new QNNTransposeCreator()));

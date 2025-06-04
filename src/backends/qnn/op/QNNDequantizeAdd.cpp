@@ -1,28 +1,33 @@
 
-#include "QNNDequantize.hpp"
+#include "QNNDequantizeAdd.hpp"
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
 #include <cassert>
 
 namespace mllm {
-QNNDequantize::QNNDequantize(Backend *bn, string opName, bool isNSHD, bool isFP32, DataType type) :
+QNNDequantizeAdd::QNNDequantizeAdd(Backend *bn, string opName, bool isNSHD, int out_features, bool isFP32, DataType type) :
     QNNCommonOp(bn, opName) {
     isNSHD_ = isNSHD;
     isFP32_ = isFP32;
+    out_features_ = out_features;
     activation_dtype_ = type;
     scale_.setBackend(bn);
+    bias_.setBackend(bn);
 }
 
-ErrorCode QNNDequantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode QNNDequantizeAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     assert(outputs.size() == 1);
     outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[0]->dimension());
     return Op::reshape(inputs, outputs);
 }
 
-ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+ErrorCode QNNDequantizeAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
     auto outName = outputs[0]->name();
     uint32_t dimensionsOutput[4];
+
+    inputs[0]->printShape();
+    bias_.printShape();
 
     if (isNSHD_) {
         dimensionsOutput[0] = static_cast<uint32_t>(outputs[0]->batch());
@@ -48,19 +53,21 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
         return NOT_SUPPORT;
     }
 
+    scale_.printShape();
+    std::cout << "dequantScale: " << dequantScale << std::endl;
 
     if (isFP32_) {
-        uint32_t paramsDeQuantizeDimension[1] = {1};
-        auto paramsDeQuantizeName = name() + "dequantize_params";
+        uint32_t paramsDequantizeAddDimension[1] = {1};
+        auto paramsDequantizeAddName = name() + "DequantizeAdd_params";
 
-        vector<Qnn_Param_t> paramsDeQuantize = {
+        vector<Qnn_Param_t> paramsDequantizeAdd = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "scale",
              .tensorParam =
                  (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
                                 .v1 = {
                                     .id = 0,
-                                    .name = paramsDeQuantizeName.c_str(),
+                                    .name = paramsDequantizeAddName.c_str(),
                                     .type = QNN_TENSOR_TYPE_STATIC,
                                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                     .dataType = QNN_DATATYPE_FLOAT_32,
@@ -68,10 +75,25 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                        QNN_QUANTIZATION_ENCODING_UNDEFINED,
                                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f, .offset = 0}}},
                                     .rank = 1,
-                                    .dimensions = paramsDeQuantizeDimension,
+                                    .dimensions = paramsDequantizeAddDimension,
                                     .memType = QNN_TENSORMEMTYPE_RAW,
                                     .clientBuf = {.data = (uint8_t *)&dequantScale,
                                                   .dataSize = sizeof(float)}}}}};
+
+        uint32_t dimensionsBias[4] = {1, 1, 1, static_cast<uint32_t>(bias_.dimension())};
+        qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
+                                                      .version = QNN_TENSOR_VERSION_1,
+                                                      .v1 = {
+                                                          .id = 0,
+                                                          .name = bias_.name().c_str(),
+                                                          .type = QNN_TENSOR_TYPE_STATIC,
+                                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                          .dataType = QNN_DATATYPE_FLOAT_32,
+                                                          .rank = 4,
+                                                          .dimensions = dimensionsBias,
+                                                          .memType = QNN_TENSORMEMTYPE_RAW,
+                                                          .clientBuf = {.data = bias_.hostPtr<void>(),
+                                                                        .dataSize = (uint32_t)bias_.cntSize()}}});
 
         vector<Qnn_Tensor_t> outputTensor = {{.version = QNN_TENSOR_VERSION_1,
                                               .v1 = {
@@ -88,20 +110,20 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                   .memType = QNN_TENSORMEMTYPE_RAW,
                                                   .clientBuf = {.data = nullptr,
                                                                 .dataSize = 0}}}};
-        return graphAddNode(name(), "LLaMADequantize", {inputs[0]->name()}, outputTensor, paramsDeQuantize, "LLaMAPackage");
+        return graphAddNode(name(), "LLaMADequantizeAdd", {inputs[0]->name(), bias_.name()}, outputTensor, paramsDequantizeAdd, "LLaMAPackage");
     } else {
         outputs[0]->setDtype(MLLM_TYPE_F16);
-        uint32_t paramsDeQuantizeDimension[1] = {1};
-        auto paramsDeQuantizeName = name() + "dequantize_params";
+        uint32_t paramsDequantizeAddDimension[1] = {1};
+        auto paramsDequantizeAddName = name() + "DequantizeAdd_params";
 
-        vector<Qnn_Param_t> paramsDeQuantize = {
+        vector<Qnn_Param_t> paramsDequantizeAdd = {
             {.paramType = QNN_PARAMTYPE_TENSOR,
              .name = "scale",
              .tensorParam =
                  (Qnn_Tensor_t){.version = QNN_TENSOR_VERSION_1,
                                 .v1 = {
                                     .id = 0,
-                                    .name = paramsDeQuantizeName.c_str(),
+                                    .name = paramsDequantizeAddName.c_str(),
                                     .type = QNN_TENSOR_TYPE_STATIC,
                                     .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
                                     .dataType = QNN_DATATYPE_FLOAT_32,
@@ -110,10 +132,25 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                        {.scaleOffsetEncoding = {.scale = 0.0000000000000000f,
                                                                                 .offset = 0}}},
                                     .rank = 1,
-                                    .dimensions = paramsDeQuantizeDimension,
+                                    .dimensions = paramsDequantizeAddDimension,
                                     .memType = QNN_TENSORMEMTYPE_RAW,
                                     .clientBuf = {.data = (uint8_t *)&dequantScale,
                                                   .dataSize = sizeof(float)}}}}};
+
+        uint32_t dimensionsBias[4] = {1, 1, 1, static_cast<uint32_t>(bias_.dimension())};
+        qnnBackend_->modelAddTensor(bias_.name(), (Qnn_Tensor_t){
+                                                      .version = QNN_TENSOR_VERSION_1,
+                                                      .v1 = {
+                                                          .id = 0,
+                                                          .name = bias_.name().c_str(),
+                                                          .type = QNN_TENSOR_TYPE_STATIC,
+                                                          .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
+                                                          .dataType = QNN_DATATYPE_FLOAT_32,
+                                                          .rank = 4,
+                                                          .dimensions = dimensionsBias,
+                                                          .memType = QNN_TENSORMEMTYPE_RAW,
+                                                          .clientBuf = {.data = bias_.hostPtr<void>(),
+                                                                        .dataSize = (uint32_t)bias_.cntSize()}}});
 
         vector<Qnn_Tensor_t> outputTensor = {{QNN_TENSOR_VERSION_1,
                                               {.v1 = {
@@ -130,11 +167,11 @@ ErrorCode QNNDequantize::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_
                                                    .memType = QNN_TENSORMEMTYPE_RAW,
                                                    .clientBuf = {.data = nullptr,
                                                                  .dataSize = 0}}}}};
-        return graphAddNode(name(), "LLaMADequantize", {inputs[0]->name()}, outputTensor, paramsDeQuantize, "LLaMAPackage");
+        return graphAddNode(name(), "LLaMADequantizeAdd", {inputs[0]->name(), bias_.name()}, outputTensor, paramsDequantizeAdd, "LLaMAPackage");
     }
 }
 
-ErrorCode QNNDequantize::load(AbstructLoader &loader) {
+ErrorCode QNNDequantizeAdd::load(AbstructLoader &loader) {
     string scaleName = name();
     string scaleTypeName = "output_scale";
 
@@ -144,18 +181,30 @@ ErrorCode QNNDequantize::load(AbstructLoader &loader) {
         scaleName.erase(pos, wordToRemove.length());
     }
 
-    wordToRemove = ".x.";
-    pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-        scaleTypeName = ".q_proj.input_scale";
-    }
-
     scale_.setName(scaleName + scaleTypeName);
     scale_.reshape(1, 1, 1, 1);
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
+
+    scale_.printData<float>();
+
+    string biasName = name();
+    wordToRemove = "dequantize";
+    string biasTypeName = "bias";
+
+    pos = biasName.find(wordToRemove);
+    if (pos != -1) {
+        biasName.erase(pos, wordToRemove.length());
+    }
+
+    bias_.setName(biasName + biasTypeName);
+    bias_.reshape(1, 1, 1, out_features_);
+    bias_.setDtype(MLLM_TYPE_F32);
+    bias_.alloc();
+    loader.load(&bias_);
+
+    bias_.printData<float>();
 
     return Op::load(loader);
 }
