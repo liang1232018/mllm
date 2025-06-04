@@ -344,7 +344,7 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
                                                 .name = outName.c_str(),
                                                 .type = getOutputTensorType(outputs[0]),
                                                 .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                                .dataType = QNN_DATATYPE_SFIXED_POINT_16,
+                                                .dataType = QNN_DATATYPE_UFIXED_POINT_16,
                                                 .quantizeParams = {QNN_DEFINITION_DEFINED,
                                                                    QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
                                                                    {.scaleOffsetEncoding = {.scale = outputScale, .offset = 0}}},
@@ -402,7 +402,7 @@ ErrorCode QNNLinearINT8::setUpW8A16(vector<shared_ptr<Tensor>> &inputs, vector<s
                                              .name = outName.c_str(),
                                              .type = getOutputTensorType(outputs[0]),
                                              .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                             .dataType = QNN_DATATYPE_SFIXED_POINT_16,
+                                             .dataType = QNN_DATATYPE_UFIXED_POINT_16,
                                              .quantizeParams = {QNN_DEFINITION_DEFINED,
                                                                 QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
                                                                 {.scaleOffsetEncoding = {.scale = outputScale, .offset = 0}}},
@@ -443,6 +443,8 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     weightScale_.alloc();
     loader.load(&weightScale_);
 
+    weightScale_.printData<float>();
+
     biasScale_.setName(name() + ".bias.scale");
     biasScale_.reshape(1, 1, 1, 1);
     biasScale_.setDtype(MLLM_TYPE_F32);
@@ -454,6 +456,8 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     outputScale_.setDtype(MLLM_TYPE_F32);
     outputScale_.alloc();
     loader.load(&outputScale_);
+
+    outputScale_.printData<float>();
 
     return Op::load(loader);
 }

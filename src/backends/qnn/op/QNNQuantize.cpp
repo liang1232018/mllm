@@ -146,7 +146,7 @@ ErrorCode QNNQuantize::setUpI16(vector<shared_ptr<Tensor>> &inputs, vector<share
                                                .name = outName.c_str(),
                                                .type = getOutputTensorType(outputs[0]),
                                                .dataFormat = QNN_TENSOR_DATA_FORMAT_FLAT_BUFFER,
-                                               .dataType = QNN_DATATYPE_SFIXED_POINT_16,
+                                               .dataType = QNN_DATATYPE_UFIXED_POINT_16,
                                                .quantizeParams = {QNN_DEFINITION_DEFINED,
                                                                   QNN_QUANTIZATION_ENCODING_SCALE_OFFSET,
                                                                   {.scaleOffsetEncoding = {.scale = quantScale, .offset = 0}}},
@@ -172,6 +172,8 @@ ErrorCode QNNQuantize::load(AbstructLoader &loader) {
     scale_.setDtype(MLLM_TYPE_F32);
     scale_.alloc();
     loader.load(&scale_);
+
+    scale_.printData<float>();
 
     return Op::load(loader);
 }
