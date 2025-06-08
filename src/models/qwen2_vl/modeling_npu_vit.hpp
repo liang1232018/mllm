@@ -141,8 +141,11 @@ public:
         auto qkmm = qk_mm(q, k);
         auto qk = qkmm;
 
-        qk = softmax(qk);
-        qk = scale(qk);
+        auto qk_scale = scale(qk);
+        qk = qk_scale;
+        auto qk_softmax = softmax(qk);
+        qk = qk_softmax;
+        
         auto o = qkv_mm(qk, v);
 
         auto qkvres = pre_oproj_view(o);
@@ -168,7 +171,7 @@ public:
 
         hidden_states = post_mlp_res_add(x, hidden_states);
 
-        return {hidden_states, after_norm1, after_attention, q_after_rope, k_after_rope, q_before_rope, int_qkv, after_quantize, qkmm, qkvres};
+        return {hidden_states, after_norm1, after_attention, q_after_rope, k_after_rope, q_before_rope, int_qkv, after_quantize, qkmm, qkvres, qk_softmax, qk_scale};
     }
 };
 
@@ -257,9 +260,13 @@ public:
             auto after_quantize = outputs[7];
             after_quantize.saveIntData<int8_t>("-input-quantize-qnn");
             auto qkmm = outputs[8];
-            qkmm.saveData<float16_t>("-after-qkmm-qnn");
+            qkmm.saveData<float16_t>("-after-qk-qnn");
             auto qkvres = outputs[9];
-            qkvres.saveData<float16_t>("-after-qkvres-qnn");
+            qkvres.saveData<float16_t>("-after-qkv-qnn");
+            auto qk_softmax = outputs[10];
+            qk_softmax.saveData<float16_t>("-after-qk-softmax-qnn");
+            auto qk_scale = outputs[11];
+            qk_scale.saveData<float16_t>("-after-qk-scale-qnn");
         }
 
         hidden_states.saveData<float>("hidden-after-1-qnn");
