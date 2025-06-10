@@ -8,7 +8,6 @@
 #include "Types.hpp"
 #include "configuration_qwen2_vl.hpp"
 #include "models/qwen2_vl/modeling_qwen2_vl.hpp"
-#include <arm_neon.h>
 #include <cassert>
 #include <cstdint>
 #include <string>
@@ -65,9 +64,9 @@ public:
 
         // attention
         auto attn_base_name = base_name + names._attn_base_name;
-        input_quantize = Quantize(true, attn_base_name + names._qkv_proj_name + ".quantize", MLLM_TYPE_I8);
+        input_quantize = Quantize(true, attn_base_name + names._qkv_proj_name + ".quantize", MLLM_TYPE_I16);
         qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim_ * 3, false, attn_base_name + names._qkv_proj_name);
-        qkv_dequant = DequantizeAdd(true, head_size * attn_hidden_dim_ * 3, attn_base_name + names._qkv_proj_name + ".dequantize", false, MLLM_TYPE_I8);
+        qkv_dequant = DequantizeAdd(true, head_size * attn_hidden_dim_ * 3, attn_base_name + names._qkv_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         qkv_split = Split(3, DIMENSION, head_size * attn_hidden_dim_, attn_base_name + names._qkv_proj_name + ".split");
 
@@ -86,21 +85,23 @@ public:
 
         pre_oproj_view = View(-1, 1, -1, attn_hidden_dim_ * head_size_, attn_base_name + "or_split-00_view_");
 
-        o_quantize = Quantize(true, attn_base_name + names._o_proj_name + ".quantize");
+        o_quantize = Quantize(true, attn_base_name + names._o_proj_name + ".quantize", MLLM_TYPE_I16);
         o_proj = Linear(head_size * attn_hidden_dim_, hidden_dim, false, attn_base_name + names._o_proj_name);
-        post_oproj_dequantize = DequantizeAdd(true, hidden_dim, attn_base_name + names._o_proj_name + ".dequantize");
+        post_oproj_dequantize = DequantizeAdd(true, hidden_dim, attn_base_name + names._o_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         post_atten_res_add = Add(attn_base_name + "post_atten_add");
 
         // mlp
         auto mlp_base_name = base_name + names._ffn_base_name;
-        pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
+        pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize", MLLM_TYPE_I16);
         up_proj = Linear(hidden_dim, ffn_hidden, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize");
-        act = ACT_FN[act_fn_type](mlp_base_name + names._ffn_base_name + "act");
-        pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
+        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+
+        act = ACT_FN[act_fn_type](mlp_base_name + "act");
+
+        pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize", MLLM_TYPE_I16);
         down_proj = Linear(ffn_hidden, hidden_dim, false, mlp_base_name + names._down_proj_name);
-        post_down_proj_dequantize = DequantizeAdd(true, hidden_dim, mlp_base_name + names._down_proj_name + ".dequantize");
+        post_down_proj_dequantize = DequantizeAdd(true, hidden_dim, mlp_base_name + names._down_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         post_mlp_res_add = Add(mlp_base_name + "res_add");
 
@@ -115,9 +116,8 @@ public:
         auto rotary_pos_emb_cos = inputs[2];
 
         Tensor q, k, v;
-        auto after_quantize = input_quantize(hidden_states);
-        hidden_states  = after_quantize;
-        auto int_qkv  = qkv_proj(hidden_states);
+        hidden_states = input_quantize(hidden_states);
+        auto int_qkv = qkv_proj(hidden_states);
         auto qkv = int_qkv;
 
         qkv = qkv_dequant(qkv);
@@ -128,35 +128,23 @@ public:
         k = qkv_sp[1];
         v = qkv_sp[2];
 
-        auto q_before_rope = q_view(q);
-        q = q_before_rope;
+        q = q_view(q);
         k = k_view(k);
         v = v_view(v);
 
-        auto q_after_rope = q_rope(q, rotary_pos_emb_sin, rotary_pos_emb_cos);
-        q = q_after_rope;
-        auto k_after_rope = k_rope(k, rotary_pos_emb_sin, rotary_pos_emb_cos);
-        k = k_after_rope;
+        q = q_rope(q, rotary_pos_emb_sin, rotary_pos_emb_cos);
+        k = k_rope(k, rotary_pos_emb_sin, rotary_pos_emb_cos);
 
-        auto qkmm = qk_mm(q, k);
-        auto qk = qkmm;
-
-        auto qk_scale = scale(qk);
-        qk = qk_scale;
-        auto qk_softmax = softmax(qk);
-        qk = qk_softmax;
-        
+        auto qk = qk_mm(q, k);
+        qk = scale(qk);
+        qk = softmax(qk);
         auto o = qkv_mm(qk, v);
 
-        auto qkvres = pre_oproj_view(o);
-
-        o = qkvres;
+        o = pre_oproj_view(o);
 
         o = o_quantize(o);
         hidden_states = o_proj(o);
-
-        auto after_attention = post_oproj_dequantize(hidden_states);
-        hidden_states = after_attention;
+        hidden_states = post_oproj_dequantize(hidden_states);
 
         auto residual = post_atten_res_add(hidden_states, inputs[0]);
 
@@ -164,14 +152,18 @@ public:
 
         // mlp
         hidden_states = pre_mlp_quantize(hidden_states);
-        auto x = up_proj(hidden_states);
-        x = act(x);
-        x = down_proj(x);
-        x = post_down_proj_dequantize(x);
+        hidden_states = up_proj(hidden_states);
+        hidden_states = post_up_proj_dequantize(hidden_states);
 
-        hidden_states = post_mlp_res_add(x, hidden_states);
+        hidden_states = act(hidden_states);
 
-        return {hidden_states, after_norm1, after_attention, q_after_rope, k_after_rope, q_before_rope, int_qkv, after_quantize, qkmm, qkvres, qk_softmax, qk_scale};
+        hidden_states = pre_down_proj_quantize(hidden_states);
+        hidden_states = down_proj(hidden_states);
+        hidden_states = post_down_proj_dequantize(hidden_states);
+
+        hidden_states = post_mlp_res_add(hidden_states, residual);
+
+        return {hidden_states};
     }
 };
 
@@ -232,9 +224,6 @@ public:
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto hidden_states = patch_embed({inputs[0]})[0];
 
-        hidden_states.saveData<float>("-input-qnn");
-
-        // auto rotary_pos_emb = rot_pos_emb(inputs[1]);
         auto rotary_pos_emb_sin = rot_pos_emb_sin(inputs[1]);
         auto rotary_pos_emb_cos = rot_pos_emb_cos(inputs[1]);
 
@@ -244,29 +233,6 @@ public:
             auto outputs = blocks[i]({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos});
             _SubgraphEnd(outputs);
             hidden_states = outputs[0];
-            auto after_norm1 = outputs[1];
-            auto after_attention = outputs[2];
-
-            after_norm1.saveData<float>("-after-1-norm1-qnn");
-            after_attention.saveData<float16_t>("-after-attention-qnn");
-            auto q_after_rope = outputs[3];
-            auto k_after_rope = outputs[4];
-            q_after_rope.saveData<float16_t>("-after-q-rope-qnn");
-            k_after_rope.saveData<float16_t>("-after-k-rope-qnn");
-            auto q_before_rope = outputs[5];
-            q_before_rope.saveData<float16_t>("-before-q-rope-qnn");
-            auto int_qkv = outputs[6];
-            int_qkv.saveIntData<int8_t>("-int-qkv-qnn");
-            auto after_quantize = outputs[7];
-            after_quantize.saveIntData<int8_t>("-input-quantize-qnn");
-            auto qkmm = outputs[8];
-            qkmm.saveData<float16_t>("-after-qk-qnn");
-            auto qkvres = outputs[9];
-            qkvres.saveData<float16_t>("-after-qkv-qnn");
-            auto qk_softmax = outputs[10];
-            qk_softmax.saveData<float16_t>("-after-qk-softmax-qnn");
-            auto qk_scale = outputs[11];
-            qk_scale.saveData<float16_t>("-after-qk-scale-qnn");
         }
 
         hidden_states.saveData<float>("hidden-after-1-qnn");

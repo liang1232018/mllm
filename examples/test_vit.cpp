@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     prefill_embedding.load(model_path);
 
     vector<string> in_imgs = {
-        "../assets/showui.png"};
+        "../assets/bus.png"};
     vector<string> in_strs = {
         "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
     };
@@ -48,10 +48,10 @@ int main(int argc, char **argv) {
     auto input_tensors = processor.process(in_str, in_imgs[0]);
     auto merged_embd = prefill_embedding(input_tensors);
     
-    std::cout << "----------------" << std::endl;
+    std::cout << "--------AFTER QNN--------" << std::endl;
 
     auto cpu_prefill_embedding = Qwen2VL_ImagePatchAndEmbedding(config);
-    cpu_prefill_embedding.load("../models/showui-2B-rotated-q40.mllm");
+    cpu_prefill_embedding.load("../models/showui-2B-rotated.mllm");
     merged_embd = cpu_prefill_embedding(input_tensors);
 
     return 0;
