@@ -173,8 +173,6 @@ ErrorCode QNNQuantize::load(AbstructLoader &loader) {
     scale_.alloc();
     loader.load(&scale_);
 
-    scale_.printData<float>();
-
     return Op::load(loader);
 }
 } // namespace mllm

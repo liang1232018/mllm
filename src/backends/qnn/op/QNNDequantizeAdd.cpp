@@ -26,9 +26,6 @@ ErrorCode QNNDequantizeAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shar
     auto outName = outputs[0]->name();
     uint32_t dimensionsOutput[4];
 
-    inputs[0]->printShape();
-    bias_.printShape();
-
     if (isNSHD_) {
         dimensionsOutput[0] = static_cast<uint32_t>(outputs[0]->batch());
         dimensionsOutput[1] = static_cast<uint32_t>(outputs[0]->sequence());
@@ -52,9 +49,6 @@ ErrorCode QNNDequantizeAdd::setUp(vector<shared_ptr<Tensor>> inputs, vector<shar
     default:
         return NOT_SUPPORT;
     }
-
-    scale_.printShape();
-    std::cout << "dequantScale: " << dequantScale << std::endl;
 
     if (isFP32_) {
         uint32_t paramsDequantizeAddDimension[1] = {1};
@@ -187,8 +181,6 @@ ErrorCode QNNDequantizeAdd::load(AbstructLoader &loader) {
     scale_.alloc();
     loader.load(&scale_);
 
-    scale_.printData<float>();
-
     string biasName = name();
     wordToRemove = "dequantize";
     string biasTypeName = "bias";
@@ -203,8 +195,6 @@ ErrorCode QNNDequantizeAdd::load(AbstructLoader &loader) {
     bias_.setDtype(MLLM_TYPE_F32);
     bias_.alloc();
     loader.load(&bias_);
-
-    bias_.printData<float>();
 
     return Op::load(loader);
 }

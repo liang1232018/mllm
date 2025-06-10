@@ -62,21 +62,16 @@ public:
         q = qkv_sp[0];
         k = qkv_sp[1];
         v = qkv_sp[2];
-        q.saveData<float>("-before-q-rope-cpu");
+
         q = Tensor::apply_rotary_pos_emb_vision(q, rotary_pos_emb);
-        q.saveData<float>("-after-q-rope-cpu");
         k = Tensor::apply_rotary_pos_emb_vision(k, rotary_pos_emb);
-        k.saveData<float>("-after-k-rope-cpu");
         k = k.transpose(SEQUENCE, DIMENSION);
         auto qk = Tensor::mm(q, k);
-        qk.saveData<float>("-after-qk-cpu");
-        std::cout << "attn scale: " << 1/ std::sqrt(attn_hidden_dim_) << std::endl;
         qk = qk / std::sqrt(attn_hidden_dim_);
         //mask
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
         o = o.view(-1, 1, -1, attn_hidden_dim_ * head_size_);
-        o.saveData<float>("-after-qkv-mm-cpu");
         o = o_proj(o);
         return {o};
     }
@@ -120,14 +115,10 @@ public:
         auto cu_seqlens = inputs[1];
         auto rotary_pos_emb = inputs[2];
         auto hidden_states = norm1(inputs[0]);
-        hidden_states.saveData<float>("-after-norm1-cpu");
         hidden_states = attention({hidden_states, cu_seqlens, rotary_pos_emb})[0];
-        hidden_states.saveData<float>("-after-attention-cpu");
         auto residual = hidden_states + inputs[0];
         hidden_states = norm2(residual);
-        hidden_states.saveData<float>("-after-norm2-cpu");
         hidden_states = mlp({hidden_states})[0];
-        hidden_states.saveData<float>("-after-mlp-cpu");
         hidden_states = hidden_states + residual;
         return {hidden_states};
     }
@@ -179,11 +170,8 @@ public:
         vector<float> cu_seqlens_v = {0.0F, grid_t*grid_h*grid_w};
         auto cu_seqlens = Tensor(cu_seqlens_v);
 
-        hidden_states.saveData<float>("-input-cpu");
-
         for (auto &block : blocks) {
             hidden_states = block({hidden_states, cu_seqlens, rotary_pos_emb})[0];
-            hidden_states.saveData<float>("hidden-after-1-cpu");
         }
         hidden_states = patch_merger({hidden_states})[0];
         return {hidden_states};

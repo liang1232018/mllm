@@ -31,7 +31,6 @@ ErrorCode QNNScale::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         uint32_t scalarDimensions[1] = {1};
         float scaleData[] = {scale_};
         float16_t scaleDataF16[] = {static_cast<float16_t>(scale_)};
-        std::cout << "-------scale:" << scale_ << std::endl; 
         auto scaleName = name() + ".scale";
         auto qnnDtype = QNN_DATATYPE_FLOAT_32;
 

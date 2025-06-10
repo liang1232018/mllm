@@ -443,8 +443,6 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     weightScale_.alloc();
     loader.load(&weightScale_);
 
-    weightScale_.printData<float>();
-
     biasScale_.setName(name() + ".bias.scale");
     biasScale_.reshape(1, 1, 1, 1);
     biasScale_.setDtype(MLLM_TYPE_F32);
@@ -456,8 +454,6 @@ ErrorCode QNNLinearINT8::load(AbstructLoader &loader) {
     outputScale_.setDtype(MLLM_TYPE_F32);
     outputScale_.alloc();
     loader.load(&outputScale_);
-
-    outputScale_.printData<float>();
 
     return Op::load(loader);
 }
