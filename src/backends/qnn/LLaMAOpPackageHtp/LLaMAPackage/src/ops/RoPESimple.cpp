@@ -136,28 +136,28 @@ GraphStatus ropeSimpleImpl(TensorType &out_0,
     // BSHD =>  NHWC
 
     out_0.set_dims(in_0);
-    auto [b_in, h_in, w_in, d_in] = in_0.dims();
+    auto [b_in, w_in, h_in, d_in] = in_0.dims();
     DType dtype = out_0.get_dtype();
 
     if (dtype == DType::Float32) {
         for (Idx b = 0; b < b_in; b++) {
-            for (Idx h = 0; h < h_in; h++) {
-                for (Idx w = 0; w < w_in; w++) {
-                    int s = h; //  BSHD order
+            for (Idx w = 0; w < w_in; w++) {
+                for (Idx h = 0; h < h_in; h++) {
                     int partial_dimension = d_in;
                     int half = (int)(partial_dimension / 2);
                     for (Idx d = 0; d < partial_dimension / 2; ++d) {
-                        float in_value = in_0(b, h, w, d);
-                        float in_value_2 = in_0(b, h, w, d + half);
-                        float sin_value = sin(0, 0, s, d);
-                        float cos_value = cos(0, 0, s, d);
+                        float in_value = in_0(b, w, h, d);
+                        float in_value_2 = in_0(b, w, h, d + half);
+                        float sin_value = sin(0, 0, w, d);
+                        float cos_value = cos(0, 0, w, d);
                         auto value = in_value * cos_value - in_value_2 * sin_value;
                         auto value2 = in_value * sin_value + in_value_2 * cos_value;
-                        out_0(b, h, w, d) = value;
-                        out_0(b, h, w, d + half) = value2;
+                        out_0(b, w, h, d) = value;
+                        out_0(b, w, h, d + half) = value2;
                     }
                 }
             }
+            
         }
     } else if (dtype == DType::Float16) {
         auto in_ptr = (__fp16 *)in_0.raw_data_const();
@@ -166,16 +166,15 @@ GraphStatus ropeSimpleImpl(TensorType &out_0,
         auto out_ptr = (__fp16 *)out_0.raw_data();
 
         for (Idx b = 0; b < b_in; b++) {
-            for (Idx h = 0; h < h_in; h++) {
-                for (Idx w = 0; w < w_in; w++) {
-                    int s = h; //  BSHD order
+            for (Idx w = 0; w < w_in; w++) {
+                for (Idx h = 0; h < h_in; h++) {
                     int partial_dimension = d_in;
                     int half = (int)(partial_dimension / 2);
                     for (Idx d = 0; d < partial_dimension / 2; ++d) {
                         __fp16 in_value = *in_ptr;
                         __fp16 in_value_2 = *(in_ptr + half);
-                        float sin_value = sin(0, 0, s, d);
-                        float cos_value = cos(0, 0, s, d);
+                        float sin_value = sin(0, 0, w, d);
+                        float cos_value = cos(0, 0, w, d);
                         auto value = in_value * cos_value - in_value_2 * sin_value;
                         auto value2 = in_value * sin_value + in_value_2 * cos_value;
                         *out_ptr = static_cast<__fp16>(value);
@@ -188,7 +187,7 @@ GraphStatus ropeSimpleImpl(TensorType &out_0,
                     out_ptr += half;
                     in_ptr += half;
                 }
-            }
+            } 
         }
     }
     return GraphStatus::Success;
