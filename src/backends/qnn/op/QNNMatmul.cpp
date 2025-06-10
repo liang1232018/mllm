@@ -25,7 +25,7 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          */
 
         assert(inputs[0]->dimension() == inputs[1]->sequence());
-        inputs[1]->transShape(SEQUENCE, DIMENSION);
+        // inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->sequence(), inputs[1]->dimension());
 
     } else if (transpose1_) {
@@ -53,8 +53,8 @@ ErrorCode QNNMatmul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_pt
          batch |out_channel | seq_len               |  1
          */
         assert(inputs[0]->sequence() == inputs[1]->sequence());
-        inputs[0]->transShape(SEQUENCE, DIMENSION);
-        inputs[1]->transShape(SEQUENCE, DIMENSION);
+        // inputs[0]->transShape(SEQUENCE, DIMENSION);
+        // inputs[1]->transShape(SEQUENCE, DIMENSION);
         outputs[0]->reshape(inputs[0]->batch(), inputs[0]->head(), inputs[0]->dimension(), inputs[1]->dimension());
     }
 
@@ -69,7 +69,7 @@ ErrorCode QNNMatmul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<
         qnnDtype = QNN_DATATYPE_SFIXED_POINT_8;
     } else if (inputs[0]->dtype() == MLLM_TYPE_I16) {
         outputs[0]->setDtype(MLLM_TYPE_I16);
-        qnnDtype = QNN_DATATYPE_UFIXED_POINT_16;
+        qnnDtype = QNN_DATATYPE_SFIXED_POINT_16;
     }else if (inputs[0]->dtype() == MLLM_TYPE_F16) {
         outputs[0]->setDtype(MLLM_TYPE_F16);
         qnnDtype = QNN_DATATYPE_FLOAT_16;

@@ -42,7 +42,7 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
             quantType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
             break;
         case MLLM_TYPE_I16:
-            data_type = QNN_DATATYPE_UFIXED_POINT_16;
+            data_type = QNN_DATATYPE_SFIXED_POINT_16;
             quantScale = scale->hostPtr<float>()[0] / (pow(2, 15) - 1);
             // quantScale = roundf(quantScale * 100000) / 100000;
             quantDefine = QNN_DEFINITION_DEFINED;

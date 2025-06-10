@@ -1552,7 +1552,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_UFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_16</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
             </Output>
         </SupplementalOpDef>
 
@@ -1686,7 +1686,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Output>
                 <Name>out[0]</Name>
                 <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_16</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
             </Output>
         </SupplementalOpDef>
 
@@ -1697,7 +1697,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_16</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
             </Input>
             <Output>
                 <Name>out[0]</Name>
@@ -1713,7 +1713,7 @@ Confidential and Proprietary - Qualcomm Technologies, Inc.
             <Input>
                 <Name>in[0]</Name>
                 <Datatype>QNN_DATATYPE_SFIXED_POINT_8</Datatype>
-                <Datatype>QNN_DATATYPE_UFIXED_POINT_16</Datatype>
+                <Datatype>QNN_DATATYPE_SFIXED_POINT_16</Datatype>
             </Input>
             <Input>
                 <Name>in[1]</Name>

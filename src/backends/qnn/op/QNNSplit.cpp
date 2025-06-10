@@ -204,7 +204,7 @@ ErrorCode QNNSplit::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         for (auto &output : outputs) {
             output->setDtype(MLLM_TYPE_I16);
         }
-        outPutDataType = QNN_DATATYPE_UFIXED_POINT_16;
+        outPutDataType = QNN_DATATYPE_SFIXED_POINT_16;
         quanDefined = QNN_DEFINITION_DEFINED;
         quantDecoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
 
