@@ -13,9 +13,6 @@ using namespace mllm;
 
 namespace v2 {
 
-// a 'just working' try
-std::set shadowLayers = {1, 2, 4, 5, 26};
-
 // NPU QKV part
 class QwenDecoderNPUPart1 : public Module {
 protected:
@@ -409,9 +406,12 @@ class QwenNPU_CPUDecoder final : public Module {
     QwenQKVmm qkv_mm;
     unique_ptr<QwenDecoderNPUPart2> part2;
 
+    std::set<int> shadowLayer;
+
 public:
     QwenNPU_CPUDecoder() = default;
-    QwenNPU_CPUDecoder(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenNPU_CPUDecoder(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) :
+        shadowLayer(config.shadow_layers) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -425,7 +425,7 @@ public:
         layer_idx = std::stoi(match[0]);
         num_layers = config.num_hidden_layers;
 
-        if (layer_idx == 0 || shadowLayers.find(layer_idx - 1) != shadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
             pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize", MLLM_TYPE_I16);
             part1 = make_unique<QwenDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
@@ -445,7 +445,7 @@ public:
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         Tensor x, q, k, v, res;
-        if (layer_idx == 0 || shadowLayers.find(layer_idx - 1) != shadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             x = input_layernorm(inputs[0]);
             x = pre_attn_quantize(x);
 
@@ -500,9 +500,12 @@ class QwenNPU_CPUDecoderWithShadow final : public Module {
     SubgraphStart _SubgraphStart_1, _SubgraphStart_2;
     SubgraphFinalize _SubgraphEnd_1, _SubgraphEnd_2;
 
+    std::set<int> shadowLayer;
+
 public:
     QwenNPU_CPUDecoderWithShadow() = default;
-    QwenNPU_CPUDecoderWithShadow(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenNPU_CPUDecoderWithShadow(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) :
+        shadowLayer(config.shadow_layers) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -516,7 +519,7 @@ public:
         layer_idx = std::stoi(match[0]);
         num_layers = config.num_hidden_layers;
 
-        if (layer_idx == 0 || shadowLayers.find(layer_idx - 1) != shadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             input_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps, base_name + names._attn_norm_name);
             pre_attn_quantize = Quantize(true, base_name + names._attn_base_name + names._q_proj_name + ".quantize", MLLM_TYPE_I16);
             part1 = make_unique<QwenDecoderNPUPart1>(config, names, chunk_size, base_name + names._attn_base_name);
@@ -538,7 +541,7 @@ public:
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         Tensor x, q, k, v, res;
-        if (layer_idx == 0 || shadowLayers.find(layer_idx - 1) != shadowLayers.end()) {
+        if (layer_idx == 0 || shadowLayer.find(layer_idx - 1) != shadowLayer.end()) {
             x = input_layernorm(inputs[0]);
             x = pre_attn_quantize(x);
 
@@ -581,7 +584,7 @@ public:
 // Copied from GemmaModel with Gemma->Qwen and set RmsNorm(without add_unit_offset)
 class QWenModel_NPU final : public Module {
     template <typename T1, typename SHADOW, typename... Args>
-    static vector<unique_ptr<Module>> ListWithShadow(int n, Args &&...args) {
+    static vector<unique_ptr<Module>> ListWithShadow(int n, std::set<int> &shadowLayer, Args &&...args) {
         static_assert(std::is_base_of<Module, T1>::value, "T1 must be a subclass of Module");
         static_assert(std::is_base_of<Module, SHADOW>::value, "SHADOW must be a subclass of Module");
         listIdx = 0;
@@ -590,7 +593,7 @@ class QWenModel_NPU final : public Module {
         // for index in shadowLayers, create shadow decoder, for others, create normal decoder
         for (int i = 0; i < n; i++) {
             auto new_args = change_last(args...); // 创建新的参数包，最后一个参数被修改为原来的值+ std::to_string(listIdx)+ "."
-            if (shadowLayers.find(listIdx) != shadowLayers.end()) {
+            if (shadowLayer.find(listIdx) != shadowLayer.end()) {
                 modules.push_back(std::make_unique<SHADOW>(std::apply([&](auto &&...args) { return SHADOW(std::forward<decltype(args)>(args)...); }, new_args)));
             } else {
                 modules.push_back(std::make_unique<T1>(std::apply([&](auto &&...args) { return T1(std::forward<decltype(args)>(args)...); }, new_args)));
@@ -603,9 +606,9 @@ class QWenModel_NPU final : public Module {
 
 public:
     QWenModel_NPU() = default;
-    QWenModel_NPU(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QWenModel_NPU(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name, std::set<int> &shadowLayer) {
         // blocks = List<QwenNPU_CPUDecoder>(1, config, names, base_name);
-        blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(config.num_hidden_layers, config, names, chunk_size, base_name);
+        blocks = ListWithShadow<QwenNPU_CPUDecoder, QwenNPU_CPUDecoderWithShadow>(config.num_hidden_layers, shadowLayer, config, names, chunk_size, base_name);
         norm = RMSNorm(config.hidden_size, config.rms_norm_eps, names.post_norm_name);
     }
 
@@ -624,13 +627,16 @@ private:
 };
 
 class QWenForCausalLM_NPU final : public Module {
+    std::set<int> &shadowLayer;
+
 public:
-    QWenForCausalLM_NPU(QWenConfig &config, int chunk_size = 64) {
+    QWenForCausalLM_NPU(QWenNPUConfig &config, int chunk_size = 64) :
+        shadowLayer(config.shadow_layers) {
         auto names = config.names_config;
         hidden_size = config.hidden_size;
         tie_embedding_words = config.tie_embedding_words;
         embedding = Embedding(config.vocab_size, config.hidden_size, names.token_embd_name);
-        model = QWenModel_NPU(config, names, chunk_size, names.blk_name);
+        model = QWenModel_NPU(config, names, chunk_size, names.blk_name, shadowLayer);
 
         // Qwen-0.5 use tied embedding
         // Others use nn.Linear()

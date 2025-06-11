@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
-    QWenConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
+    QWenNPUConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = v2::QWenForCausalLM_NPU(config, 32);
 
     Module::initBackend(MLLM_QNN);

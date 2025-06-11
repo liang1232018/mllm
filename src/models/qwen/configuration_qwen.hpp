@@ -191,4 +191,27 @@ struct QWenConfig : public TransformerConfig {
     QWenNameConfig names_config;
 };
 
+struct QWenNPUConfig : public QWenConfig {
+    explicit QWenNPUConfig(int token_limit, string billions = "1.8B", RoPEType type = RoPEType::HFHUBROPE) :
+        QWenConfig(token_limit, billions, type) {
+        string billionsType;
+        std::transform(billions.begin(), billions.end(), std::back_inserter(billionsType),
+                       ::tolower);
+        if (billionsType == "1.8b") {
+            shadow_layers = {1, 2, 26};
+        } else if (billionsType == "1.5b") {
+            shadow_layers = {1, 2, 4, 5, 26};
+        } else if (billionsType == "1.5b-rotated") {
+            shadow_layers = {};
+            use_i32_bias = true;
+        } else {
+            throw std::runtime_error("Unsupported model size");
+        }
+    }
+
+    std::set<int> shadow_layers;
+    // use i32/fp32 bias for Linear in QNN, when using fp32 bias, bias will be added by DequantizeAdd
+    bool use_i32_bias = false;
+};
+
 #endif //! CONFIG_QWEN_HPP
