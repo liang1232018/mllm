@@ -40,7 +40,7 @@ protected:
 
 public:
     QwenDecoderNPUPart1() = default;
-    QwenDecoderNPUPart1(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart1(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -49,17 +49,23 @@ public:
 
         pre_attn_view = View(-1, 1, -1, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, config.use_i32_bias, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._v_proj_name);
 
         q_view = View(-1, num_heads, -1, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        if (config.use_i32_bias) {
+            q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        } else {
+            q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        }
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -90,7 +96,7 @@ class QwenDecoderNPUPart1WithRes final : public QwenDecoderNPUPart1 {
 
 public:
     QwenDecoderNPUPart1WithRes() = default;
-    QwenDecoderNPUPart1WithRes(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart1WithRes(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -104,17 +110,23 @@ public:
 
         pre_attn_view = View(-1, 1, -1, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, true, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, true, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, config.use_i32_bias, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._v_proj_name);
 
         q_view = View(-1, num_heads, -1, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(-1, num_key_value_heads, -1, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        if (config.use_i32_bias) {
+            q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        } else {
+            q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        }
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -159,7 +171,7 @@ class QwenQKVmm final : public Module {
 
 public:
     QwenQKVmm() = default;
-    QwenQKVmm(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenQKVmm(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
 
@@ -232,7 +244,7 @@ protected:
 
 public:
     QwenDecoderNPUPart2() = default;
-    QwenDecoderNPUPart2(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart2(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -254,7 +266,13 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+
+        if (config.use_high_precision_silu) {
+            silu = SiLU_Full_Precision(mlp_base_name + "act");
+        } else {
+            silu = SiLU(mlp_base_name + "act");
+        }
+
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize", false);
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
@@ -309,7 +327,7 @@ public:
 class QwenDecoderNPUPart2WithShadow final : public QwenDecoderNPUPart2 {
 public:
     QwenDecoderNPUPart2WithShadow() = default;
-    QwenDecoderNPUPart2WithShadow(const QWenConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
+    QwenDecoderNPUPart2WithShadow(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
         num_heads = config.num_attention_heads;
         head_dim = config.hidden_size / num_heads;
@@ -331,7 +349,13 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+
+        if (config.use_high_precision_silu) {
+            silu = SiLU_Full_Precision(mlp_base_name + "act");
+        } else {
+            silu = SiLU(mlp_base_name + "act");
+        }
+
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");

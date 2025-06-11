@@ -34,6 +34,7 @@
 #include "op/QNNRoPESimple.hpp"
 #include "op/QNNScale.hpp"
 #include "op/QNNSiLU.hpp"
+#include "op/QNNSiLUHigh.hpp"
 #include "op/QNNSoftMax.hpp"
 #include "op/QNNSplit.hpp"
 #include "op/QNNSubGraphFinalize.hpp"
@@ -78,6 +79,7 @@ void QNNBackend::registerOps() {
     addCreator(IROPE, (QNNBackend::Creator *)(new QNNIRoPECreator()));
     addCreator(SCALE, (QNNBackend::Creator *)(new QNNScaleCreator()));
     addCreator(SILU, (QNNBackend::Creator *)(new QNNSiLUCreator()));
+    addCreator(SILU_FULL_PRECISION, (QNNBackend::Creator *)(new QNNSiLUHighCreator()));
     addCreator(SOFTMAX, (QNNBackend::Creator *)(new QNNSoftMaxCreator()));
     addCreator(LINEAR, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
     addCreator(LINEARINT8, (QNNBackend::Creator *)(new QNNLinearINT8Creator()));
@@ -96,7 +98,6 @@ void QNNBackend::registerOps() {
     addCreator(SUBGRAPHSTART, (QNNBackend::Creator *)(new QNNSubGraphStartCreator()));
     addCreator(SUBGRAPHFINALIZE, (QNNBackend::Creator *)(new QNNSubGraphFinalizeCreator()));
     addCreator(SPLIT, (QNNBackend::Creator *)(new QNNSplitCreator()));
-
 }
 
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
@@ -354,7 +355,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             } else {
                 MLLM_LOG_ERROR_STREAM << "[ERROR] QNNBackend::graphSetUp: loader is nullptr" << std::endl;
             }
-            
+
             // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1) * 100000) / 100000;
             scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1);
             scaleTensor.free();

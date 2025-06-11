@@ -201,9 +201,10 @@ struct QWenNPUConfig : public QWenConfig {
             shadow_layers = {1, 2, 26};
         } else if (billionsType == "1.5b") {
             shadow_layers = {1, 2, 4, 5, 26};
+            use_high_precision_silu = true;
         } else if (billionsType == "1.5b-rotated") {
             shadow_layers = {};
-            use_i32_bias = true;
+            use_i32_bias = false;
         } else {
             throw std::runtime_error("Unsupported model size");
         }
@@ -211,7 +212,10 @@ struct QWenNPUConfig : public QWenConfig {
 
     std::set<int> shadow_layers;
     // use i32/fp32 bias for Linear in QNN, when using fp32 bias, bias will be added by DequantizeAdd
-    bool use_i32_bias = false;
+    bool use_i32_bias = true;
+    // there are two types of QNNSiLU, a approximate int version and a (sigmoid * x) version
+    // for qwen2.5, input of silu act has a large range, config here to use the (sigmoid * x)
+    bool use_high_precision_silu = false;
 };
 
 #endif //! CONFIG_QWEN_HPP

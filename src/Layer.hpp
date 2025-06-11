@@ -928,6 +928,18 @@ public:
 
 //  Only for QNN START
 
+class SiLU_Full_Precision final : public Layer {
+public:
+    SiLU_Full_Precision() = default;
+    SiLU_Full_Precision(std::string name) {
+        init(std::move(name), OpType::SILU_FULL_PRECISION);
+    }
+    Tensor &operator()(Tensor &input) {
+        auto ts = run({input}, 1);
+        return ts[0].get();
+    }
+};
+
 class Quantize final : public Layer {
 public:
     explicit Quantize(bool isNSHD, std::string name, DataType type = MLLM_TYPE_I8) {
