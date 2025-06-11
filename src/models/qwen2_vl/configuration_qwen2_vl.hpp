@@ -32,7 +32,7 @@ class Qwen2VLNameConfig : public ViTNameConfig {
         }
 };
 
-class Qwen2VLConfig : public QWenConfig {
+class Qwen2VLConfig : virtual public QWenConfig {
 public:
     int vision_embed_dim;
     int spatial_merge_size= 2;
@@ -55,6 +55,17 @@ public:
         hidden_size = 1536;
         vision_embed_dim = 1280;
         vision_names_config.init_qwen2vl();
+    }
+};
+
+class Qwen2VLNPUConfig : public Qwen2VLConfig, public QWenNPUConfig {
+public:
+    Qwen2VLNPUConfig(int token_limit, string billions = "1.5b", RoPEType type = HFHUBROPE, int vocab = 32064, string project_cls = "MLP")
+        : QWenConfig(token_limit, billions, type),
+          Qwen2VLConfig(token_limit, billions, type, vocab, project_cls),
+          QWenNPUConfig(token_limit, billions, type)
+    {
+        std::cout << "use i32 bias: " << use_i32_bias << std::endl; 
     }
 };
 

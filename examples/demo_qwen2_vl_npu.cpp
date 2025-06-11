@@ -36,11 +36,11 @@ int main(int argc, char **argv) {
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
-    Qwen2VLConfig config(tokens_limit, "1.5b-rotated");
+    Qwen2VLNPUConfig config(tokens_limit, "1.5b-rotated");
     auto model_config = Qwen2VLConfig(config);
 
     auto prefill_embedding = Qwen2VL_ImagePatchAndEmbedding(config);
-    auto prefill_body = Qwen2VL_PrefillBody(config, chunk_size);
+    auto prefill_body = Qwen2VL_PrefillBody(config, chunk_size, config.shadow_layers);
     prefill_embedding.load(cpu_model_path);
     prefill_body.load(model_path);
 

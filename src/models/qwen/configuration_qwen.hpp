@@ -191,7 +191,7 @@ struct QWenConfig : public TransformerConfig {
     QWenNameConfig names_config;
 };
 
-struct QWenNPUConfig : public QWenConfig {
+struct QWenNPUConfig : virtual public QWenConfig {
     explicit QWenNPUConfig(int token_limit, string billions = "1.8B", RoPEType type = RoPEType::HFHUBROPE) :
         QWenConfig(token_limit, billions, type) {
         string billionsType;
