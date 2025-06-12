@@ -169,11 +169,14 @@ class QwenQKVmm final : public Module {
     int num_key_value_heads;
     int num_key_value_groups;
 
+    bool isScale = false;
+
 public:
     QwenQKVmm() = default;
     QwenQKVmm(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
-        num_heads = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
+        num_heads = config.num_attention_heads;
+        head_dim = config.hidden_size / num_heads;
 
         q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
@@ -184,6 +187,9 @@ public:
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
         o_quantize = Quantize(true, base_name + names._o_proj_name + ".quantize");
+
+        if (!config.use_i32_bias)
+            isScale = true;
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -198,6 +204,8 @@ public:
         v = v_cache(v);
 
         auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        if (isScale)
+            qk = qk / std::sqrt(head_dim);
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
 

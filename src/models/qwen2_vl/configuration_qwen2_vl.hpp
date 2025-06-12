@@ -65,6 +65,9 @@ public:
           Qwen2VLConfig(token_limit, billions, type, vocab, project_cls),
           QWenNPUConfig(token_limit, billions, type)
     {
+
+        use_high_precision_silu = false;
+         shadow_layers = {};
         std::cout << "use i32 bias: " << use_i32_bias << std::endl; 
     }
 };
