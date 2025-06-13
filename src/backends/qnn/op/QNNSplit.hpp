@@ -11,14 +11,12 @@ public:
     virtual ~QNNSplit() = default;
     virtual ErrorCode reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
     virtual ErrorCode setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) override;
-    virtual ErrorCode load(AbstructLoader &loader) override;
 
 private:
     int split_num_;
     Chl split_dim_;
     int split_dim_size_;
     std::vector<int> each_dims_;
-    AbstructLoader *loader;
 };
 
 class QNNSplitCreator : public QNNBackend::Creator {

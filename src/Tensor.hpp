@@ -59,6 +59,16 @@ class Module;
  *        then the size of SEQUENCE dimension of the first Tensor is 2, the size of SEQUENCE dimension of the second Tensor is 1.
  *
  */
+
+class QuantParam {
+public:
+    QuantParam() : scale(0.0f), zero_point(0) {}
+    QuantParam(float s, int zp) : scale(s), zero_point(zp) {}
+
+    float scale;      // quantization scale
+    int zero_point;  // quantization zero point
+};
+
 class Tensor {
 public:
     Tensor() :
@@ -74,6 +84,8 @@ public:
     */
 
     static TensorStatus tensor_status;
+
+    QuantParam quant_param;
 
 private:
     std::map<Chl, int> chls_ = {{BATCH, 0}, {SEQUENCE, 1}, {HEAD, 2}, {DIMENSION, 3}, {CHANNLE, 1}, {TIME, 2}, {HEIGHT, 3}, {WIDTH, 4}};

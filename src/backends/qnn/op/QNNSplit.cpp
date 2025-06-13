@@ -173,33 +173,8 @@ ErrorCode QNNSplit::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         outPutDataType = QNN_DATATYPE_SFIXED_POINT_8;
         quanDefined = QNN_DEFINITION_DEFINED;
         quantDecoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-
-        string scaleName = name();
-        string scaleTypeName = "output_scale";
-
-        std::string wordToRemove = "split";
-        int pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-        }
-
-        wordToRemove = ".x.";
-        pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            scaleTypeName = ".q_proj.input_scale";
-        }
-
-        Tensor scale_(Backend::global_backends[MLLM_CPU]);
-        scale_.setName(scaleName + scaleTypeName);
-        scale_.reshape(1, 1, 1, 1);
-        scale_.setDtype(MLLM_TYPE_F32);
-        scale_.alloc();
-        // loader->load(&scale_);
-        std::cout << "[QNNSplit] load scale: " << scale_.name() << " value: " << scale_.hostPtr<float>()[0] << std::endl;
-
-        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 7) - 1);
-        scale_.free();
+        quantScale = inputs[0]->quant_param.scale;
+        outputs[0]->quant_param = inputs[0]->quant_param;
     } else if (inputs[0]->dtype() == MLLM_TYPE_I16) {
         for (auto &output : outputs) {
             output->setDtype(MLLM_TYPE_I16);
@@ -207,33 +182,8 @@ ErrorCode QNNSplit::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         outPutDataType = QNN_DATATYPE_SFIXED_POINT_16;
         quanDefined = QNN_DEFINITION_DEFINED;
         quantDecoding = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-
-        string scaleName = name();
-        string scaleTypeName = "output_scale";
-
-        std::string wordToRemove = "split";
-        int pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-        }
-
-        wordToRemove = ".x.";
-        pos = scaleName.find(wordToRemove);
-        if (pos != -1) {
-            scaleName.erase(pos, wordToRemove.length());
-            scaleTypeName = ".q_proj.input_scale";
-        }
-
-        Tensor scale_(Backend::global_backends[MLLM_CPU]);
-        scale_.setName(scaleName + scaleTypeName);
-        scale_.reshape(1, 1, 1, 1);
-        scale_.setDtype(MLLM_TYPE_F32);
-        scale_.alloc();
-        // loader->load(&scale_);
-        std::cout << "[QNNSplit] load scale: " << scale_.name() << " value: " << scale_.hostPtr<float>()[0] << std::endl;
-
-        quantScale = scale_.hostPtr<float>()[0] / (pow(2, 15) - 1);
-        scale_.free();
+        quantScale = inputs[0]->quant_param.scale;
+        outputs[0]->quant_param = inputs[0]->quant_param;
     } else if (inputs[0]->dtype() == MLLM_TYPE_I32) {
         for (auto &output : outputs) {
             output->setDtype(MLLM_TYPE_I32);
@@ -264,11 +214,6 @@ ErrorCode QNNSplit::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
     }
 
     return graphAddNode(name(), "Split", {inputs[0]->name()}, out, params);
-}
-
-ErrorCode QNNSplit::load(AbstructLoader &loader) {
-    this->loader = &loader;
-    return Op::load(loader);
 }
 
 } // namespace mllm

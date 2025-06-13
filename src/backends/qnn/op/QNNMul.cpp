@@ -26,7 +26,8 @@ ErrorCode QNNMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
     if (inputs[0]->dtype() == MLLM_TYPE_I8) {
 
         outputs[0]->setDtype(MLLM_TYPE_I8);
-        return graphAddNode(name(), "ElementWiseMultiply", inputs, outputs, {}, "qti.aisw", true,  &scale_);
+        outputs[0]->quant_param.scale = inputs[0]->quant_param.scale;
+        return graphAddNode(name(), "ElementWiseMultiply", inputs, outputs, {}, "qti.aisw", true);
 
     } else {
 

@@ -281,24 +281,11 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
         this->reportError("Graph Initialization failure: " + graphName);
     }
 
-    // To avoid no input, we put inputs here.
-    // For splitinput op input, the seq will be divided as 5, and we add the input in split ops.
     for (auto &input : inputs) {
         Qnn_DataType_t data_type;
         auto quantizeDefined = QNN_DEFINITION_UNDEFINED;
         auto quantizeType = QNN_QUANTIZATION_ENCODING_UNDEFINED;
         float scale = 0.0f;
-        AbstructLoader *loader = nullptr;
-        if (Module::llm_model_ptr == nullptr) { // old frontend
-            loader = dataLoader_;
-        } else { // new frontend
-            loader = Module::llm_model_ptr->loader;
-        }
-        Tensor scaleTensor(this);
-        scaleTensor.reshape(1, 1, 1, 1);
-        scaleTensor.setDtype(MLLM_TYPE_F32);
-        scaleTensor.alloc();
-
         switch (input->dtype()) {
         case MLLM_TYPE_F32:
             data_type = QNN_DATATYPE_FLOAT_32;
@@ -310,111 +297,14 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
             data_type = QNN_DATATYPE_SFIXED_POINT_8;
             quantizeDefined = QNN_DEFINITION_DEFINED;
             quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-
-            string scaleName = input->name();
-
-            std::string wordToRemove = "outtensor-";
-            int pos = scaleName.find(wordToRemove);
-            if (pos != -1) { // old frontend merge/split generated tensor
-                scaleName = scaleName.substr(wordToRemove.length());
-                wordToRemove = "or_split";
-                if (scaleName.find(wordToRemove) != -1) {
-                    pos = scaleName.find("or_split");
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // o
-                    scaleName += "o_proj.input_scale";
-                } else if (scaleName.find("ires_split") != -1) {
-                    pos = scaleName.find("ires_split");
-                    wordToRemove = "ires_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // q
-                    scaleName += "q_proj.input_scale";
-                } else if (scaleName.find("fres_split") != -1) {
-                    pos = scaleName.find("fres_split");
-                    wordToRemove = "fres_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // fc1
-                    scaleName += "up_proj.input_scale";
-                }
-            } else { // new frontend no merge/split condition
-                std::string prefix = "out-", suffix = ".quantize";
-                if (input->name().find(prefix) != std::string::npos) {
-                    scaleName = input->name().substr(prefix.length());
-                }
-                if (scaleName.find(suffix) != std::string::npos) {
-                    scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
-                }
-                scaleName += ".input_scale";
-            }
-            scaleTensor.setName(scaleName);
-            if (loader != nullptr) {
-                loader->load(&scaleTensor);
-            } else {
-                MLLM_LOG_ERROR_STREAM << "[ERROR] QNNBackend::graphSetUp: loader is nullptr" << std::endl;
-            }
-
-            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1) * 100000) / 100000;
-            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 7) - 1);
-            scaleTensor.free();
-
+            scale = input->quant_param.scale;
             break;
         }
         case MLLM_TYPE_I16: {
             data_type = QNN_DATATYPE_SFIXED_POINT_16;
             quantizeDefined = QNN_DEFINITION_DEFINED;
             quantizeType = QNN_QUANTIZATION_ENCODING_SCALE_OFFSET;
-
-            string scaleName = input->name();
-
-            std::string wordToRemove = "outtensor-";
-            int pos = scaleName.find(wordToRemove);
-            if (pos != -1) { // old frontend merge/split generated tensor
-                scaleName = scaleName.substr(wordToRemove.length());
-                wordToRemove = "or_split";
-                if (scaleName.find(wordToRemove) != -1) {
-                    pos = scaleName.find("or_split");
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // o
-                    scaleName += "o_proj.input_scale";
-                } else if (scaleName.find("ires_split") != -1) {
-                    pos = scaleName.find("ires_split");
-                    wordToRemove = "ires_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // q
-                    scaleName += "q_proj.input_scale";
-                } else if (scaleName.find("fres_split") != -1) {
-                    pos = scaleName.find("fres_split");
-                    wordToRemove = "fres_split";
-                    // scaleName.erase(pos, wordToRemove.length());
-                    scaleName = scaleName.substr(0, pos);
-                    // fc1
-                    scaleName += "up_proj.input_scale";
-                }
-            } else { // new frontend no merge/split condition
-                std::string prefix = "out-", suffix = ".quantize";
-                if (input->name().find(prefix) != std::string::npos) {
-                    scaleName = input->name().substr(prefix.length());
-                }
-                if (scaleName.find(suffix) != std::string::npos) {
-                    scaleName = scaleName.substr(0, scaleName.length() - suffix.length());
-                }
-                scaleName += ".input_scale";
-            }
-            scaleTensor.setName(scaleName);
-            if (loader != nullptr) {
-                loader->load(&scaleTensor);
-            } else {
-                MLLM_LOG_ERROR_STREAM << "[ERROR] QNNBackend::graphSetUp: loader is nullptr" << std::endl;
-            }
-            // scale = roundf(scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1) * 100000) / 100000;
-            scale = scaleTensor.hostPtr<float>()[0] / (pow(2, 15) - 1);
-            scaleTensor.free();
-
+            scale = input->quant_param.scale;
             break;
         }
         default:
