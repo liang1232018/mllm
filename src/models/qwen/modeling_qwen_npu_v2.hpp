@@ -286,8 +286,8 @@ public:
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
-        pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
-        post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize");
+        pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize", MLLM_TYPE_I16);
+        post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize", true, MLLM_TYPE_I16);
         post_mlp_view = View(1, 1, chunk_size, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
 
         mlp_mul = Mul(mlp_base_name + "mul");

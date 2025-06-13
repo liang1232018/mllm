@@ -205,7 +205,7 @@ struct QWenNPUConfig : virtual public QWenConfig {
         } else if (billionsType == "1.5b-rotated") {
             shadow_layers = {};
             use_i32_bias = false;
-            shadow_layers = {1, 2, 4, 5, 26};
+            shadow_layers = {};
             use_high_precision_silu = true;
         } else {
             throw std::runtime_error("Unsupported model size");

@@ -67,7 +67,7 @@ public:
     {
 
         use_high_precision_silu = false;
-         shadow_layers = {};
+        shadow_layers = {};
         std::cout << "use i32 bias: " << use_i32_bias << std::endl; 
     }
 };
