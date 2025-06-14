@@ -909,7 +909,7 @@ public:
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
         } else {
-            lm_head_layer = HeadLinear(config.hidden_size, config.vocab_size, false, qwen_names.lm_head_name);
+            lm_head_layer = HeadLinear(config.hidden_size, config.vocab_size, false, qwen_names.token_embd_name);
         }
     }
 
@@ -922,24 +922,24 @@ public:
         // }
         // TODO: remove it
         for (auto i = 0; i < blocks.size(); ++i) {
-            auto start_time = mllm_time_ms();
+            // auto start_time = mllm_time_ms();
             hidden_states = (*blocks[i])({hidden_states, position_ids})[0];
-            auto end_time = mllm_time_ms();
+            // auto end_time = mllm_time_ms();
             // std::cout << "-----------------" << "block " << i << " time: " << end_time - start_time << "ms" << std::endl;
         }
 
         hidden_states = norm(hidden_states);
 
-        // TODO: remove it
-        auto start_time = mllm_time_ms();
+        // // TODO: remove it
+        // auto start_time = mllm_time_ms();
         if (tie_embedding_words) {
             hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         } else {
             hidden_states = lm_head_layer(hidden_states);
         }
-        // TODO: remove it
-        auto end_time = mllm_time_ms();
-        std::cout << "-----------------" << "lm_head time: " << end_time - start_time << "ms" << std::endl;
+        // // TODO: remove it
+        // auto end_time = mllm_time_ms();
+        // std::cout << "-----------------" << "lm_head time: " << end_time - start_time << "ms" << std::endl;
         return {hidden_states};
     }
 };

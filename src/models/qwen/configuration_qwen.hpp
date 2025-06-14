@@ -220,6 +220,7 @@ struct QWenNPUConfig : virtual public QWenConfig {
         } else if (billionsType == "1.5b-vl") { // qwen-2-vl
             shadow_layers = {1, 26};
             use_high_precision_silu = false;
+            tie_embedding_words = false;
         } else if (billionsType == "1.5b-rotated") {
             shadow_layers = {};
             use_i32_bias = false;

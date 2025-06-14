@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
     Qwen2VLNPUConfig config(tokens_limit, "1.5b-vl");
-    auto model_config = Qwen2VLConfig(config);
+    auto model_config = Qwen2VLConfig(tokens_limit, "1.5b");
 
     auto prefill_embedding = Qwen2VL_ImagePatchAndEmbedding(config);
     auto prefill_body = Qwen2VL_PrefillBody(config, chunk_size, config.shadow_layers);
@@ -54,7 +55,7 @@ int main(int argc, char **argv) {
     vector<string> in_imgs = {
         "../assets/bus.png"};
     vector<string> in_strs = {
-        "<|vision_start|><|image_pad|><|vision_end|>Describe this image.",
+        "<|vision_start|><|image_pad|><|vision_end|>Imagine you are describing this image to someone who cannot see it. Explain everything you observe, including the background, subjects, their expressions, and any activities they appear to be doing.",
     };
     // vector<string> in_imgs = {
     //     "../assets/showui.png"};
@@ -70,7 +71,7 @@ int main(int argc, char **argv) {
     std::cout << "real seq length: " << real_seq_length << std::endl;
 
     const int num_iter = (real_seq_length + chunk_size - 1) / chunk_size;
-    std::cout << "num_iter" << num_iter << std::endl;
+    std::cout << "num_iter: " << num_iter << std::endl;
     // padding the position_ids to total chunk length(example: 256*2) for CPUMultimodalRoPEPipeline
     prefill_embedding.get_position_ids(input_tensors, chunk_size * num_iter);
 
@@ -96,6 +97,9 @@ int main(int argc, char **argv) {
     // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
     static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
 
+    std::cout << "[Q] " << in_strs[0] << std::endl;
+    std::cout << "[A] " << std::flush;
+
     for (auto &t : input_tensors) {
         t.setTtype(INPUT_TENSOR);
     }
@@ -104,10 +108,10 @@ int main(int argc, char **argv) {
     auto vit_start = mllm_time_ms();
     auto merged_embd = prefill_embedding(input_tensors);
     auto vit_end = mllm_time_ms();
-    std::cout << "vit embedding: " << vit_end - vit_start << " ms" << std::endl;
+    
 
     // free prefill embedding tensor, approximately free 1GB for 59ms
-    auto begin_free = mllm_time_ms();
+    // auto begin_free = mllm_time_ms();
     auto &embedding_act = prefill_embedding.activation_tensors;
     // go through the activation tensors to get the merged_embd
     for (auto iter = embedding_act.begin(); iter != embedding_act.end(); ++iter) {
@@ -117,12 +121,13 @@ int main(int argc, char **argv) {
         }
         iter->second->free();
     }
-    auto end_free = mllm_time_ms();
+    // auto end_free = mllm_time_ms();
     // std::cout << "free time: " << end_free - begin_free << " ms" << std::endl;
 
     // 2. QNN LLM Prefill
     unsigned int out_token = 0;
     auto start_time = mllm_time_ms();
+    int64_t prefill_time;
     for (auto i = 0; i < num_iter; ++i) {
         // copy the data from merged_embd[0] to merged_embd_warmup_tensor
         auto source = merged_embd[0].ptrAt<float>(0, 0, chunk_size * i, 0);
@@ -141,7 +146,7 @@ int main(int argc, char **argv) {
 
         if (i == num_iter - 1) {
             auto end_time = mllm_time_ms();
-            std::cout << "Prefill:" << end_time - start_time << " ms" << std::endl;
+            prefill_time = end_time - start_time;
 
             auto outputs = processor.detokenize(result[0], real_seq_length % chunk_size);
             auto out_string = outputs.first;
@@ -180,6 +185,8 @@ int main(int argc, char **argv) {
     }
 
     std::cout << std::endl;
+    std::cout << "vit embedding time: " << vit_end - vit_start << " ms" << std::endl;
+    std::cout << "Prefill:" << prefill_time << " ms" << std::endl;
 
     if (!std::filesystem::exists("qnn_context.bin")) {
         static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
