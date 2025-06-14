@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
     cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen2-vl-w8-i8bias-128-xdl-test.mllm");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen2-vl-w8-i8bias-128.mllm");
     // cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
     // cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
     // cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-w8-fpbias-noshadow-xdl-test.mllm");
