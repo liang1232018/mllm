@@ -158,7 +158,7 @@ public:
     Qwen2VisionModel(int hidden_dim, int vision_embed_dim, int head_size, int mlp_hidden_dim, const string &act_fn_type, int patch, int img_hw, int block_num, int spatial_merge_size, const Qwen2VLNameConfig &names, const string &base_name) {
         patch_embed = Qwen2PatchEmbed(vision_embed_dim, patch, img_hw, names, base_name + names.patch_embed_name);
         rot_pos_emb = VisionRoPE((vision_embed_dim/head_size)/2, spatial_merge_size, base_name + ".rot_pos_emb");
-        blocks = List<VisionBlock>(1, vision_embed_dim, head_size, mlp_hidden_dim, act_fn_type, names, base_name + names._layer_name);
+        blocks = List<VisionBlock>(block_num, vision_embed_dim, head_size, mlp_hidden_dim, act_fn_type, names, base_name + names._layer_name);
         patch_merger = PatchMerger(hidden_dim, vision_embed_dim, spatial_merge_size, names, base_name + names._merger_name);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {

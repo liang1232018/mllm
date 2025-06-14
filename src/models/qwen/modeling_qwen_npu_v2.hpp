@@ -198,6 +198,7 @@ public:
         v = v_cache(v);
 
         auto qk = Tensor::mm(q, k.transpose(Chl::SEQUENCE, Chl::DIMENSION));
+        qk = qk / sqrt(head_dim);
         qk = softmax(qk);
         auto o = Tensor::mm(qk, v);
 

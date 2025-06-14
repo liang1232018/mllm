@@ -14,9 +14,12 @@
 using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-w8-fpbias-noshadow-xdl-test.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen2-vl-w8-i8bias-128-xdl-test.mllm");
+    // cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
+    // cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
+    // cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-w8-fpbias-noshadow-xdl-test.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1000);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -24,19 +27,20 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
     string model_path = cmdParser.get<string>("model");
-    const string cpu_model_path = "../models/showui-2B-rotated-q40.mllm";
+    const string cpu_model_path = "../models/qwen-2-vl-2b-instruct-q4_k.mllm";
+    // const string cpu_model_path = "../models/showui-2B-rotated-q40.mllm";
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     // TODO: add a function to calculate the chunk size
-    const int chunk_size = 256;
+    const int chunk_size = 128;
 
     Module::initBackend(MLLM_QNN);
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
-    Qwen2VLNPUConfig config(tokens_limit, "1.5b-rotated");
+    Qwen2VLNPUConfig config(tokens_limit, "1.5b-vl");
     auto model_config = Qwen2VLConfig(config);
 
     auto prefill_embedding = Qwen2VL_ImagePatchAndEmbedding(config);
@@ -48,10 +52,15 @@ int main(int argc, char **argv) {
     decoding_model.load(cpu_model_path);
 
     vector<string> in_imgs = {
-        "../assets/showui.png"};
+        "../assets/bus.png"};
     vector<string> in_strs = {
-        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
+        "<|vision_start|><|image_pad|><|vision_end|>Describe this image.",
     };
+    // vector<string> in_imgs = {
+    //     "../assets/showui.png"};
+    // vector<string> in_strs = {
+    //     "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
+    // };
 
     auto &in_str = in_strs[0];
     in_str = processor.tokenizer->apply_chat_template(in_str);
@@ -102,14 +111,14 @@ int main(int argc, char **argv) {
     auto &embedding_act = prefill_embedding.activation_tensors;
     // go through the activation tensors to get the merged_embd
     for (auto iter = embedding_act.begin(); iter != embedding_act.end(); ++iter) {
-        std::cout << iter->first << std::endl;
+        // std::cout << iter->first << std::endl;
         if (iter->first.find("input") != std::string::npos || iter->first.find("index_put") != std::string::npos) {
             continue;
         }
         iter->second->free();
     }
     auto end_free = mllm_time_ms();
-    std::cout << "free time: " << end_free - begin_free << " ms" << std::endl;
+    // std::cout << "free time: " << end_free - begin_free << " ms" << std::endl;
 
     // 2. QNN LLM Prefill
     unsigned int out_token = 0;
@@ -119,9 +128,8 @@ int main(int argc, char **argv) {
         auto source = merged_embd[0].ptrAt<float>(0, 0, chunk_size * i, 0);
         auto dest = prefill_input[0].hostPtr<void>();
         if (i == 0) {
-            memcpy(dest, source, prefill_input[0].cntSize());
-        }
-        {
+            memcpy(dest, source, std::min(prefill_input[0].cntSize(), merged_embd[0].cntSize()));
+        } else {
             memcpy(dest, source, (merged_embd[0].sequence() % chunk_size) * merged_embd[0].dimension() * sizeof(float));
         }
 
@@ -131,7 +139,7 @@ int main(int argc, char **argv) {
             static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
         }
 
-        if (i == 1) {
+        if (i == num_iter - 1) {
             auto end_time = mllm_time_ms();
             std::cout << "Prefill:" << end_time - start_time << " ms" << std::endl;
 
