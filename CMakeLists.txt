@@ -44,7 +44,10 @@ endif()
     add_compile_definitions(__ARM_FEATURE_DOTPROD)
     # 检查是否使用的是 GCC 或 Clang 编译器
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8.2-a+dotprod")
+        # 默认使用 armv8.2-a+dotprod，除非用户自定义了 CMAKE_CXX_FLAGS
+        if(NOT DEFINED CMAKE_CXX_FLAGS OR CMAKE_CXX_FLAGS STREQUAL "")
+            set(CMAKE_CXX_FLAGS "-march=armv8.6-a+dotprod+i8mm")
+        endif()
     endif()
 else ()
     if (MSVC)
@@ -311,4 +314,9 @@ if(MLLM_ENABLE_PYTHON)
         TARGETS _C
         LIBRARY DESTINATION mllm/
     )
+endif()
+
+
+if(ARM)
+    add_subdirectory(tools/powercounter)
 endif()

@@ -948,7 +948,7 @@ public:
 class Qwen2VL_Decoding_Model final : public Module {
     Layer embed_tokens;
 
-    vector<QWenDecoder> blocks;
+    vector<QWen2Decoder> blocks;
     Layer norm;
     Parameter lm_head;
     Layer lm_head_layer;
@@ -979,7 +979,7 @@ public:
 
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
 
-        blocks = List<QWenDecoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
+        blocks = List<QWen2Decoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
