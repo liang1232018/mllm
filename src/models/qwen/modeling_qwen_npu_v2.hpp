@@ -173,7 +173,8 @@ public:
     QwenQKVmm() = default;
     QwenQKVmm(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
         hidden_size = config.hidden_size;
-        num_heads = config.num_attention_heads * config.hidden_size / config.num_attention_heads;
+        num_heads = config.num_attention_heads;
+        head_dim = config.hidden_size / num_heads;
 
         q_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "q_rope");
         k_rope = RoPE(config.RoPE_type, config.rope_theta, config.max_position_embeddings, base_name + "k_rope");
