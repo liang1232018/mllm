@@ -488,7 +488,6 @@ void QNNBackend::afterAllGraphsExecute() {
     qnnModelIndexMap_.clear();
 
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
-    qnnMM->deRegisterQnnTensor();
 
     this->freeContext();
 

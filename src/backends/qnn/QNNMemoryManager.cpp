@@ -61,14 +61,14 @@ QNNMemoryManager::QNNMemoryManager() {
 
 QNNMemoryManager::~QNNMemoryManager() {
 #ifdef QNN_ARM
-    for (auto &mem : ptrToFdAndMemHandleMap_) {
-        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&mem.second.second, 1);
+    for (auto iter = ptrToFdAndMemHandleMap_.begin(); iter != ptrToFdAndMemHandleMap_.end();) {
+        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&iter->second.second, 1);
         if (QNN_SUCCESS != deregisterRet) {
             // handle errors
             MLLM_LOG_ERROR_STREAM << "qnnInterface_.memDeRegister failed" << std::endl;
         }
-        rpcmem_free(mem.first);
-        ptrToFdAndMemHandleMap_.erase(mem.first);
+        rpcmem_free(iter->first);
+        iter = ptrToFdAndMemHandleMap_.erase(iter);
     }
 #endif
 }
@@ -146,23 +146,6 @@ void QNNMemoryManager::registerQnnTensor(void *ptr, Qnn_Tensor_t &qnnTensor) {
     ptrToFdAndMemHandleMap_.insert(std::make_pair(ptr, std::make_pair(memFd, qnnTensor.v1.memHandle)));
 }
 
-void QNNMemoryManager::deRegisterQnnTensor() {
-#ifdef QNN_ARM
-    // free all buffers if it's not being used
-    for (auto &mem : ptrToFdAndMemHandleMap_) {
-        Qnn_ErrorHandle_t deregisterRet = qnnInterface_.memDeRegister(&mem.second.second, 1);
-        if (QNN_SUCCESS != deregisterRet) {
-            // handle errors
-            MLLM_LOG_ERROR_STREAM << "qnnInterface_.memDeRegister failed" << std::endl;
-        }
-        // rpcmem_free(mem.first);
-        // clear the map outside the loop.
-        // ptrToFdAndMemHandleMap_.erase(mem.first);
-    }
-    ptrToFdAndMemHandleMap_.clear();
-#endif
-}
-
 void QNNMemoryManager::free(void *ptr) {
 #ifdef QNN_ARM
     // if the ptr has been registered, deregister it
@@ -173,7 +156,7 @@ void QNNMemoryManager::free(void *ptr) {
             // handle errors
             MLLM_LOG_ERROR_STREAM << "qnnInterface_.memDeRegister failed" << std::endl;
         }
-        ptrToFdAndMemHandleMap_.erase(it);
+        it = ptrToFdAndMemHandleMap_.erase(it);
     }
     rpcmem_free(ptr);
 #else
