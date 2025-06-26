@@ -10,9 +10,9 @@
 using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui2b-int8vit-test.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen2_vl_vit_lm_rota_noshadow.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 1000);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
     vector<string> in_imgs = {
         "../assets/bus.png"};
     vector<string> in_strs = {
-        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
+        "Describe this image.",
     };
 
     auto &in_str = in_strs[0];

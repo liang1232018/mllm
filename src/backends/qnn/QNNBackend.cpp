@@ -25,6 +25,7 @@
 #include "op/QNNCausalMask.hpp"
 #include "op/QNNDequantizeAdd.hpp"
 #include "op/QNNGELU.hpp"
+#include "op/QNNQuickGELU.hpp"
 #include "op/QNNLinearINT8.hpp"
 #include "op/QNNMatmul.hpp"
 #include "op/QNNMul.hpp"
@@ -87,7 +88,7 @@ void QNNBackend::registerOps() {
     addCreator(VIEW, (QNNBackend::Creator *)(new QNNViewCreator()));
     addCreator(RELU, (QNNBackend::Creator *)(new QNNReLUCreator()));
     addCreator(OP_GELU, (QNNBackend::Creator *)(new QNNGELUCreator()));
-    addCreator(QUICKGLUE, (QNNBackend::Creator *)(new QNNGELUCreator()));
+    addCreator(QUICKGLUE, (QNNBackend::Creator *)(new QNNQuickGELUCreator()));
     addCreator(QUANTIZE, (QNNBackend::Creator *)(new QNNQuantizeCreator()));
     addCreator(DEQUANTIZE, (QNNBackend::Creator *)(new QNNDequantizeCreator()));
     addCreator(DEQUANTIZEADD, (QNNBackend::Creator *)(new QNNDequantizeAddCreator()));
