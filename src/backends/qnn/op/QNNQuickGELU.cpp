@@ -29,8 +29,8 @@ ErrorCode QNNQuickGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
 
     
     uint32_t scalarDimensions[1] = {1};
-    float scaleData[] = {-1.702f};
-    float16_t scaleDataF16[] = {static_cast<float16_t>(-1.702f)};
+    float scaleData[] = {1.702f};
+    float16_t scaleDataF16[] = {static_cast<float16_t>(1.702f)};
     auto scaleName = name() + ".gelu_scale";
     auto qnnDtype = QNN_DATATYPE_FLOAT_32;
 
