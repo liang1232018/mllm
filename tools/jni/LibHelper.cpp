@@ -30,7 +30,7 @@
 using namespace mllm;
 
 #ifdef USE_QNN
-#include "models/qwen/modeling_qwen_npu.hpp"
+#include "models/qwen/modeling_qwen_npu_v2.hpp"
 #include "models/phonelm/modeling_phonelm_npu.hpp"
 
 #endif
@@ -81,7 +81,7 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
 #ifdef USE_QNN
         if (backend_type == MLLMBackendType::QNN) {
             int chunk_size = 64;
-            prefill_module_ = make_shared<QWenForCausalLM_NPU>(qwconfig, chunk_size);
+            prefill_module_ = make_shared<v2::QWenForCausalLM_NPU>(qwconfig, chunk_size);
             prefill_module_->load(qnn_weights_path);
 
             auto tokenizer = dynamic_pointer_cast<QWenTokenizer>(tokenizer_);
