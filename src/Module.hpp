@@ -50,7 +50,6 @@ public:
     int prefilling_token_size_ = 0;
     int decoding_token_size_ = 0;
     vector<double> inference_times_;
-    BackendType device_ = BackendType::MLLM_CPU;
 
     map<string, shared_ptr<Tensor>> activation_tensors;
     map<string, int> activation_tensors_num;
@@ -68,7 +67,6 @@ public:
     static std::stack<int> listIdxStack;
     // static int runlistIdx;
 
-    static bool doToDevice;
     static BackendType tmp_device;
 
     static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
@@ -90,18 +88,10 @@ private:
         auto tail_tuple = change_last(tail...);
         return std::tuple_cat(std::make_tuple(head), tail_tuple);
     }
-    int idx;
 
 public:
-    Module() {
-        idx = Module::graphIdx;
-        Module::graphIdx++;
-    }
+    Module() {}
     virtual ~Module() = default;
-
-    BackendType device() const {
-        return device_;
-    }
 
     static void initBackend(BackendType type = BackendType::MLLM_CPU) {
         if (Backend::global_backends.find(type) == Backend::global_backends.end() || Backend::global_backends[type] == nullptr) {
@@ -129,12 +119,6 @@ public:
             }
             }
         }
-    }
-
-    // TODO: Deprecated, the module is not backend specific, the backend should be set in the SubGraphStart and SubGraphFinalize
-    void to(BackendType type) {
-        initBackend(type);
-        device_ = type;
     }
 
     void load(string path) {
@@ -187,14 +171,6 @@ public:
     }
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) = 0;
-
-    static int graphIdx;
-    string getUniqueName() {
-        std::ostringstream oss;
-        oss << "Module@" << idx;
-        graphIdx++;
-        return oss.str();
-    };
 
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {

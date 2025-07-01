@@ -113,11 +113,11 @@ int main(int argc, char **argv) {
 
     auto tokenizer = SmolLMTokenizer(vocab_path, merge_file_path);
 
-    std::unique_ptr<Context> npu_ctx_ptr(new Context());
+    std::unique_ptr<express::Context> npu_ctx_ptr(new express::Context());
     auto *npu_ctx = npu_ctx_ptr.get();
-    std::unique_ptr<Context> cpu_ctx_ptr(new Context());
+    std::unique_ptr<express::Context> cpu_ctx_ptr(new express::Context());
     auto *cpu_ctx = cpu_ctx_ptr.get();
-    std::unique_ptr<Context> inter_ctx_ptr(new Context());
+    std::unique_ptr<express::Context> inter_ctx_ptr(new express::Context());
     auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength

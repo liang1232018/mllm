@@ -1,6 +1,7 @@
 #ifndef TOKENIZATION_MINICPM_HPP
 #define TOKENIZATION_MINICPM_HPP
 
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include <regex>
 
@@ -30,7 +31,7 @@ class MiniCPM3Tokenizer final : public BPETokenizer {
 public:
     explicit MiniCPM3Tokenizer(const std::string &vocab_file) :
         BPETokenizer(vocab_file) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
         chat_template_pre = "<|im_start|>▁user\n";
         chat_template_end = "<|im_end|>▁\n<|im_start|>▁assistant\n";
     }

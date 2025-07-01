@@ -11,7 +11,7 @@ using namespace express;
 
 const std::set phonelm_shadow_layers = {1, 3, 4};
 
-NetTensor *PhoneLM_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+NetTensor *PhoneLM_FFN_NPU(express::Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     // x = _SuperSiLU({x,y}, name + ".supersilu");
@@ -25,7 +25,7 @@ NetTensor *PhoneLM_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hid
     return x;
 }
 
-std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk, int layer) {
+std::vector<NetTensor *> PhoneLM_CPUNPUAttention(express::Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk, int layer) {
     x = x->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_size * head_size);
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
@@ -96,7 +96,7 @@ std::vector<NetTensor *> PhoneLM_CPUNPUAttention(Context *c, NetTensor *x, NetTe
     return {o, res};
 }
 
-NetTensor *PhoneLM_CPUAttention_q40(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
+NetTensor *PhoneLM_CPUAttention_q40(express::Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
     auto *q = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".q_proj");
     auto *k = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".k_proj");
     auto *v = _Linear({x}, embedding_size, hidden_size * head_size, false, name + ".v_proj");
@@ -124,7 +124,7 @@ NetTensor *PhoneLM_CPUAttention_q40(Context *c, NetTensor *x, int embedding_size
     return o;
 }
 
-NetTensor *PhoneLM_FFN_CPU_q40(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+NetTensor *PhoneLM_FFN_CPU_q40(express::Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = _ReLU({x}, name + ".relu");
@@ -133,7 +133,7 @@ NetTensor *PhoneLM_FFN_CPU_q40(Context *c, NetTensor *i, int hidden_dim, int ffn
     return x;
 }
 
-void phonelm_cpu_q40(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
+void phonelm_cpu_q40(express::Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
@@ -151,7 +151,7 @@ void phonelm_cpu_q40(Context *c, int vocab_size = 32000, int hidden_dim = 4096, 
 }
 
 // merge o and FFN.
-void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
+void phonelm_npu(express::Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
@@ -225,7 +225,7 @@ void phonelm_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int 
     }
 }
 
-void phonelm_npu_cpu_inter(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
+void phonelm_npu_cpu_inter(express::Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");

@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
     int ffn_hidden_dim = cmdParser.get<int>("ffn");
 
     vector<string> in_strs = {
-        "\"Large Language Models (LLMs) are advanced artificial intelligence systems designed to understand and generate human-like text. These models are trained on vast amounts of data, enabling them to perform a wide range of tasks, from answering questions and summarizing text to generating creative content and engaging in conversational dialogue. LLMs like GPT-3 and GPT-4, developed by OpenAI, have set new benchmarks in natural language processing by leveraging deep learning architectures, particularly transformer models, which excel at capturing context and relationships within text. The scalability and versatility of LLMs make them invaluable tools for applications in education, customer service, content creation, and more. However, their deployment also raises ethical considerations, including issues of bias, misinformation, and the potential for misuse. As the field continues to evolve, ongoing research and responsible deployment strategies are essential to harnessing the full potential of these powerful AI systems while mitigating their risks.\"\nGenerate a title based on the above text."
+        "\"Large Language Models (LLMs) are advanced artificial intelligence systems designed to understand and generate human-like text. These models are trained on vast amounts of data, enabling them to perform a wide range of tasks, from answering questions and summarizing text to generating creative content and engaging in conversational dialogue. LLMs like GPT-3 and GPT-4, developed by OpenAI, have set new benchmarks in natural language processing by leveraging deep learning architectures, particularly transformer models, which excel at capturing express::Context and relationships within text. The scalability and versatility of LLMs make them invaluable tools for applications in education, customer service, content creation, and more. However, their deployment also raises ethical considerations, including issues of bias, misinformation, and the potential for misuse. As the field continues to evolve, ongoing research and responsible deployment strategies are essential to harnessing the full potential of these powerful AI systems while mitigating their risks.\"\nGenerate a title based on the above text."
         // " What can you do?",
         // "Please introduce Beijing University of Posts and Telecommunications."};
     };
@@ -113,11 +113,11 @@ int main(int argc, char **argv) {
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_file_path);
 
-    std::unique_ptr<Context> npu_ctx_ptr(new Context());
+    std::unique_ptr<express::Context> npu_ctx_ptr(new express::Context());
     auto *npu_ctx = npu_ctx_ptr.get();
-    std::unique_ptr<Context> cpu_ctx_ptr(new Context());
+    std::unique_ptr<express::Context> cpu_ctx_ptr(new express::Context());
     auto *cpu_ctx = cpu_ctx_ptr.get();
-    std::unique_ptr<Context> inter_ctx_ptr(new Context());
+    std::unique_ptr<express::Context> inter_ctx_ptr(new express::Context());
     auto *inter_ctx = inter_ctx_ptr.get();
 
     // cache_max should be longer than seqLength

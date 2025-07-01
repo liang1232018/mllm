@@ -5,6 +5,7 @@
 #ifndef TOKENIZATION_LLAMA_HPP
 #define TOKENIZATION_LLAMA_HPP
 
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include <regex>
 
@@ -44,7 +45,7 @@ class LLaMATokenizer final : public BPETokenizer {
 public:
     explicit LLaMATokenizer(const std::string &vocab_file, bool bos = true) :
         BPETokenizer(vocab_file) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
         bos_ = bos;
         chat_template_pre = "<s><s> [INST] ";
         chat_template_end = " [/INST]"; // 判断 vocab_file 是否包含 "hf"

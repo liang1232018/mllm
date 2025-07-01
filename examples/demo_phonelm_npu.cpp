@@ -1,3 +1,4 @@
+#include "Context.hpp"
 #include "Module.hpp"
 #include "QNNBackend.hpp"
 #include "Types.hpp"
@@ -31,7 +32,7 @@ int main(int argc, char **argv) {
     int chunk_size = cmdParser.get<int>("chunk");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
-    Module::initBackend(MLLM_QNN);
+    mllm::Context::Instance().initBackend(MLLM_QNN);
 
     auto tokenizer = SmolLMTokenizer(vocab_path, merge_path);
     PhoneLMConfig config(tokens_limit, "1.5B");

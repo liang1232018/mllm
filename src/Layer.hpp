@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 
+#include "Context.hpp"
 #include "OpDefined.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
@@ -32,7 +33,7 @@ public:
     void init(std::string name, OpType type) {
         name_ = std::move(name);
         param_["type"] = type;
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
         backend_ = Backend::global_backends[MLLM_CPU];
         saved_list_idx = Module::listIdx;
         init_ = true;

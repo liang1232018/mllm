@@ -1,10 +1,11 @@
+#include "Context.hpp"
 #include "Backend.hpp"
 #include "Trace.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
-#include "models/qwen/modeling_qwen_npu.hpp"
+// #include "models/qwen/modeling_qwen_npu.hpp"
 #include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/modeling_qwen_npu_v2.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
@@ -31,7 +32,7 @@ int main(int argc, char **argv) {
     const int chunk_size = 128;
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
-    Module::initBackend(MLLM_QNN);
+    mllm::Context::Instance().initBackend(MLLM_QNN);
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenNPUConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);

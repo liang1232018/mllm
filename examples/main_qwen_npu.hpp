@@ -11,7 +11,7 @@ using namespace express;
 
 const std::set qwen_shadow_layers = {1, 2, 6};
 
-NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+NetTensor *Qwen_FFN_NPU(express::Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _LinearINT8({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = _SuperSiLU({x, y}, name + ".supersilu");
@@ -25,7 +25,7 @@ NetTensor *Qwen_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden
     return x;
 }
 
-std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk, int layer = 0) {
+std::vector<NetTensor *> Qwen_CPUNPUAttention(express::Context *c, NetTensor *x, NetTensor *res, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk, int layer = 0) {
     x = x->view(1, static_cast<int>(seq / chunk / 32), static_cast<int>(32), hidden_size * head_size);
     auto *q = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
     auto *k = _LinearINT8({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
@@ -94,7 +94,7 @@ std::vector<NetTensor *> Qwen_CPUNPUAttention(Context *c, NetTensor *x, NetTenso
     return {o, res};
 }
 
-NetTensor *Qwen_CPUAttention_q4k(Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
+NetTensor *Qwen_CPUAttention_q4k(express::Context *c, NetTensor *x, int embedding_size, int hidden_size, int head_size, int cache_max, string name, int seq, int chunk) {
     auto *q = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".q_proj");
     auto *k = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".k_proj");
     auto *v = _Linear({x}, embedding_size, hidden_size * head_size, true, name + ".v_proj");
@@ -122,7 +122,7 @@ NetTensor *Qwen_CPUAttention_q4k(Context *c, NetTensor *x, int embedding_size, i
     return o;
 }
 
-NetTensor *Qwen_FFN_CPU_q4k(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
+NetTensor *Qwen_FFN_CPU_q4k(express::Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     auto *x = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".gate_proj");
     auto *y = _Linear({i}, hidden_dim, ffn_hidden_dim, false, name + ".up_proj");
     x = _SiLU({x}, name + ".silu");
@@ -131,7 +131,7 @@ NetTensor *Qwen_FFN_CPU_q4k(Context *c, NetTensor *i, int hidden_dim, int ffn_hi
     return x;
 }
 
-void qwen_cpu_q4k(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
+void qwen_cpu_q4k(express::Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
@@ -149,7 +149,7 @@ void qwen_cpu_q4k(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int
 }
 
 // merge o and FFN.
-void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
+void qwen_npu(express::Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "model.embed_tokens");
 
@@ -221,7 +221,7 @@ void qwen_npu(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn
     }
 }
 
-void qwen_npu_cpu_inter(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
+void qwen_npu_cpu_inter(express::Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200, int seq = 256, int chunk = 2) {
     auto *i = _Input(c);
     i = _RMSNorm({i}, hidden_dim, 1e-6, (string) "model.norm");
     i = _Linear({i}, hidden_dim, vocab_size, false, "lm_head");

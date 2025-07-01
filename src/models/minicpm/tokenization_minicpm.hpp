@@ -1,6 +1,7 @@
 #ifndef TOKENIZATION_MINICPM_HPP
 #define TOKENIZATION_MINICPM_HPP
 
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include <regex>
 
@@ -15,7 +16,7 @@ class MiniCPMTokenizer final : public BPETokenizer {
 public:
     explicit MiniCPMTokenizer(const std::string &vocab_file, const std::string &merge_file) :
         BPETokenizer(vocab_file) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
         std::ifstream merge(merge_file);
         std::string line;
         unsigned rank = 0;

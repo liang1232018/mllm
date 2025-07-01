@@ -9,6 +9,7 @@
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
 #endif
+#include "Context.hpp"
 #include "processor/PreProcess.hpp"
 #include "stb/stb_image.h"
 
@@ -48,7 +49,7 @@ public:
     explicit ViTProcessor() :
         PreProcessor(224, 224, false, true, true,
                      true, {0.5}, {0.5}) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
     }
 
     Tensor process(string img_path, int hw = 224, string name = "input", BackendType type = MLLM_CPU) {

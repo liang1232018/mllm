@@ -1,3 +1,4 @@
+#include "Context.hpp"
 #include "Module.hpp"
 #include "QNNBackend.hpp"
 #include "QnnTypes.h"
@@ -8,8 +9,8 @@
 using namespace mllm;
 
 auto main() -> int {
-    Module::initBackend(MLLM_CPU);
-    Module::initBackend(MLLM_QNN);
+    mllm::Context::Instance().initBackend(MLLM_CPU);
+    mllm::Context::Instance().initBackend(MLLM_QNN);
 
     auto qnnBackend = static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN]);
 

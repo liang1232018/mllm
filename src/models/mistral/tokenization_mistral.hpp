@@ -11,6 +11,7 @@
 #ifndef TOKENIZATION_MISTRAL_HPP
 #define TOKENIZATION_MISTRAL_HPP
 
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include <regex>
 
@@ -20,7 +21,7 @@ class MistralTokenizer final : public BPETokenizer {
 public:
     explicit MistralTokenizer(const std::string &vocab_file) :
         BPETokenizer(vocab_file) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
         chat_template_pre = "<s>[INST] ";
         chat_template_end = " [/INST]";
     }

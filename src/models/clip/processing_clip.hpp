@@ -6,6 +6,7 @@
 #define TOKENIZATION_CLIP_HPP
 
 #include <utility>
+#include "Context.hpp"
 #include "processor/PreProcess.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include <cstdlib>
@@ -59,7 +60,7 @@ public:
     explicit ClipProcessor(const string &vocab_path, const string &merges_path, int height = 224, int width = 224, bool add_special_tokens = true) :
         PreProcessor(height, width, false, true, true,
                      true, {0.48145466, 0.4578275, 0.40821073}, {0.26862954, 0.26130258, 0.27577711}) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
         tokenizer = new BPETokenizer(vocab_path);
         std::unordered_map<string, unsigned> merge_rank;
         auto merge_file = std::ifstream(merges_path);

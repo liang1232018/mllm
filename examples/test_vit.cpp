@@ -1,3 +1,4 @@
+#include "Context.hpp"
 #include <cstdlib>
 #include <cstring>
 #include "Types.hpp"
@@ -27,7 +28,7 @@ int main(int argc, char **argv) {
     // TODO: add a function to calculate the chunk size
     const int chunk_size = 256;
 
-    Module::initBackend(MLLM_QNN);
+    mllm::Context::Instance().initBackend(MLLM_QNN);
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);

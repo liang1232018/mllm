@@ -4,6 +4,7 @@
 #ifndef TOKENIZATION_PHI3_HPP
 #define TOKENIZATION_PHI3_HPP
 
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include <algorithm>
 #include <regex>
@@ -14,7 +15,7 @@ class Phi3Tokenizer final : public BPETokenizer {
 public:
     explicit Phi3Tokenizer(const std::string &vocab_file) :
         BPETokenizer(vocab_file) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
         chat_template_pre = "<|user|>\n";
         chat_template_end = "<|end|>\n<|assistant|>";
     }

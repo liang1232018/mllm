@@ -4,6 +4,7 @@
 
 #ifndef PROCESSING_LLAVA_HPP
 #define PROCESSING_LLAVA_HPP
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "models/clip/processing_clip.hpp"
 #include <utility>
@@ -30,7 +31,7 @@ class LLaVAProcessor final : public ClipProcessor {
 public:
     explicit LLaVAProcessor(const string &vocab_path, const string &merges_path, int height = 336, int width = 336) :
         ClipProcessor(vocab_path, merges_path, height, width, false) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
     }
 
     std::array<Tensor, 2> process(string text, string img_path, int hw = 336,

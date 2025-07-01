@@ -1,3 +1,4 @@
+#include "Context.hpp"
 #include "QNNBackend.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
@@ -31,7 +32,7 @@ int main(int argc, char **argv) {
     QWenNPUConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = v2::QWenForCausalLM_NPU(config, 32);
 
-    Module::initBackend(MLLM_QNN);
+    mllm::Context::Instance().initBackend(MLLM_QNN);
 
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);

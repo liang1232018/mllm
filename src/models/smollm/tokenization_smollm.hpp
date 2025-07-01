@@ -11,6 +11,7 @@
 #ifndef DCLMTOKENIZATION_SMOLLM_HPP
 #define DCLMTOKENIZATION_SMOLLM_HPP
 
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Tokenizer.hpp"
 #include "tokenizers/Unicode.hpp"
@@ -28,7 +29,7 @@ public:
     explicit SmolLMTokenizer(const std::string &vocab_file, const std::string &merge_file, bool split_special_tokens = false) :
         BPETokenizer(vocab_file),
         split_special_tokens_(split_special_tokens) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
 
         // init byte encoder
         std::vector<int> bs;

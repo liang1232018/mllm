@@ -6,6 +6,7 @@
 #define PROCESSING_IMAGEBIND_HPP
 #include <utility>
 
+#include "Context.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "models/clip/processing_clip.hpp"
 
@@ -90,7 +91,7 @@ class ImagebindProcessor final : public ClipProcessor {
 public:
     explicit ImagebindProcessor(const string &vocab_path, const string &merges_path) :
         ClipProcessor(vocab_path, merges_path) {
-        Module::initBackend(MLLM_CPU);
+        mllm::Context::Instance().initBackend(MLLM_CPU);
     }
 
     struct imagebind_out {
