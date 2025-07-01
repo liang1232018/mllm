@@ -95,7 +95,7 @@ public:
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize", MLLM_TYPE_I16);
         up_proj = Linear(hidden_dim, ffn_hidden, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         act = ACT_FN[act_fn_type](mlp_base_name + "act");
 
@@ -252,7 +252,7 @@ public:
 
         _SubgraphStart({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos});
 
-        for (int i = 0; i < 1 && i < blocks.size(); i++) {
+        for (int i = 0; i < 1 && i < 1; i++) {
             auto outputs = blocks[i]({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos});
             _SubgraphEnd(outputs);
             hidden_states = outputs[0];

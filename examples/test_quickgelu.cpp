@@ -28,7 +28,7 @@ auto main() -> int {
     output->setTtype(GRAPH_OUTPUT);
 
     for (int i = 0; i < 1680; i++) {
-        input->hostPtr<float>()[i] = i;
+        input->hostPtr<float>()[i] = i-840;
     }
 
     // qnn build graph
