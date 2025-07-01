@@ -8,6 +8,8 @@
 #include "tokenizers/BPE/Bpe.hpp"
 using namespace mllm;
 
+using namespace express;
+
 unsigned int argmax(const std::vector<float>& scores) {
     if(scores.empty()) {
         throw std::invalid_argument("Input vector is empty");

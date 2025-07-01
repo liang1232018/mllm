@@ -15,6 +15,8 @@
 
 using namespace mllm;
 
+using namespace express;
+
 unsigned int argmax(const std::vector<float> &scores) {
     return std::max_element(scores.begin(), scores.end()) - scores.begin();
 }

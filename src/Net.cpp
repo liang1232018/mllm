@@ -6,6 +6,8 @@
 
 namespace mllm {
 
+using namespace express;
+
 Net::Net(BackendConfig config) {
     backends_.emplace(MLLM_CPU, GetBackendCreator(MLLM_CPU)->create(config));
 }

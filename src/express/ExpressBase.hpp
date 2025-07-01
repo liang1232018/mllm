@@ -14,6 +14,8 @@ using std::map;
 
 namespace mllm {
 
+namespace express {
+
 typedef struct TNetTensor NetTensor;
 typedef struct TNetParameter NetParameter;
 
@@ -107,6 +109,7 @@ typedef struct TNetTensor {
     NetTensor *operator/(NetTensor *in_1);
     NetTensor *operator/(float devr);
 } NetTensor;
+} // namespace express
 
 } // namespace mllm
 

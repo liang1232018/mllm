@@ -7,6 +7,8 @@ using namespace mllm;
 
 namespace modeling {
 
+using namespace express;
+
 const std::set phonelm_shadow_layers = {1, 3, 4};
 
 NetTensor *PhoneLM_FFN_NPU(Context *c, NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {

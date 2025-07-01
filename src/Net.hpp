@@ -12,7 +12,7 @@ public:
     explicit Net(BackendConfig config);
     virtual ~Net() = default;
 
-    virtual void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_CPU, int threadCount = 4);
+    virtual void convert(vector<express::NetParameter> &param, BackendType backend_type = BackendType::MLLM_CPU, int threadCount = 4);
 
     unordered_map<string, shared_ptr<Graph>> &subGraph() {
         return subGraphs_;
@@ -39,7 +39,7 @@ protected:
     unordered_map<string, shared_ptr<Graph>> subGraphs_;
     unordered_map<string, shared_ptr<Tensor>> tensors_;
     vector<vector<string>> tensor_names_;
-    vector<NetOp *> ops_;
+    vector<express::NetOp *> ops_;
     unordered_map<BackendType, shared_ptr<Backend>> backends_;
     vector<string> input_names_;
     map<string, int> inputname_graphidx_;

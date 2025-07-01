@@ -8,14 +8,14 @@
 namespace mllm {
 class QNNNet : public Net {
 public:
-    explicit QNNNet(BackendConfig config, Context *ctx);
+    explicit QNNNet(BackendConfig config, express::Context *ctx);
     virtual ~QNNNet() = default;
 
-    virtual void convert(vector<NetParameter> &param, BackendType backend_type = BackendType::MLLM_QNN, int threadCount = 4) override {};
-    virtual void convert(Context* ctx, BackendType backend_type = BackendType::MLLM_QNN, int threadCount = 4);
+    virtual void convert(vector<express::NetParameter> &param, BackendType backend_type = BackendType::MLLM_QNN, int threadCount = 4) override {};
+    virtual void convert(express::Context* ctx, BackendType backend_type = BackendType::MLLM_QNN, int threadCount = 4);
 
 private:
-    Context *ctx_;
+    express::Context *ctx_;
 };
 
 } // namespace mllm

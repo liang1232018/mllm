@@ -18,6 +18,8 @@ std::string intToStringWithLeadingZero(int num) {
 
 namespace mllm {
 
+using namespace express;
+
 Graph::Graph(const NetParameter &param, Backend *bn,
              unordered_map<string, shared_ptr<Tensor>> &external_tensors,
              int threadCount) {

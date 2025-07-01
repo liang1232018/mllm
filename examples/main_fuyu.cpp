@@ -12,6 +12,8 @@
 
 using namespace std;
 
+using namespace express;
+
 void fullTensor(shared_ptr<Tensor> input_tensor, Net &net, vector<int> shape) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());
     input_tensor->reshape(shape[0], shape[1], shape[2], shape[3]);

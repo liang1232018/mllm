@@ -10,10 +10,10 @@
 using namespace mllm;
 
 // For Visualization and Debug
-void displayExpress(NetParameter *net) {
-    std::cout << "===NetParameter===" << std::endl;
+void displayExpress(express::NetParameter *net) {
+    std::cout << "===express::NetParameter===" << std::endl;
     for (auto *op : net->net_ops) {
-        std::cout << "===NetOP===" << std::endl;
+        std::cout << "===express::NetOp===" << std::endl;
         std::cout << "op->name:" << op->name << std::endl;
         std::cout << "op->type:" << op->type << std::endl;
         std::cout << "op input" << op->in.size() << std::endl;
@@ -36,7 +36,7 @@ void displayExpress(NetParameter *net) {
         std::cout << std::endl;
     }
 }
-void displayExpress(Context *c) {
+void displayExpress(express::Context *c) {
     for (auto sub : c->sub_param_) {
         displayExpress(&sub);
     }
@@ -49,7 +49,7 @@ void displayExpress(Context *c) {
     sub_param->net_tensors.push_back(out_tensor);
 
 #define _NEW_OP(type_)                            \
-    sub_param->net_ops.emplace_back(new NetOp()); \
+    sub_param->net_ops.emplace_back(new express::NetOp()); \
     auto net_op_ = (sub_param->net_ops.back());   \
     if (name.empty()) {                           \
         name = #type_ + std::to_string(ctx->idx); \
@@ -71,7 +71,7 @@ void displayExpress(Context *c) {
             }                                                                                                                 \
         }                                                                                                                     \
     }
-static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op, std::unordered_map<NetOp *, bool> &visited) {
+static void topology(const express::NetParameter *net, vector<express::NetOp *> &result, express::NetOp *op, std::unordered_map<express::NetOp *, bool> &visited) {
     if (visited[op]) {
         return;
     }
@@ -83,9 +83,9 @@ static void topology(const NetParameter *net, vector<NetOp *> &result, NetOp *op
     }
     result.push_back(op);
 }
-void NetParameter::topologySort() {
-    std::unique_ptr<vector<NetOp *>> result(new vector<NetOp *>());
-    std::unordered_map<NetOp *, bool> visited;
+void express::NetParameter::topologySort() {
+    std::unique_ptr<vector<express::NetOp *>> result(new vector<express::NetOp *>());
+    std::unordered_map<express::NetOp *, bool> visited;
     result->reserve(net_ops.size());
     visited.reserve(net_ops.size());
     for (auto *op : net_ops) {
@@ -96,14 +96,14 @@ void NetParameter::topologySort() {
 
 /**
  * \brief Creates an input tensor with the given parameters.
- * \param ctx The context in which the tensor is created.
+ * \param ctx The express::Context in which the tensor is created.
  * \param dims The dimensions of the tensor. Default is an empty vector.
  * \param name The name of the tensor. Default is an empty string.
  * \param type The data type of the tensor. Default is MLLM_TYPE_F32.
  * \return A pointer to the created tensor.
  */
-NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
-    NetTensor *net_tensor = new NetTensor();
+express::NetTensor *_Input(express::Context *ctx, vector<int> dims, string name, DataType type) {
+    express::NetTensor *net_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "input" + std::to_string(ctx->idx);
     }
@@ -121,7 +121,7 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
 
 /**
  * \brief Creates a parameter tensor with the given parameters.
- * \param ctx The context in which the tensor is created.
+ * \param ctx The express::Context in which the tensor is created.
  * \param inputs {}
  * \param batch The batch size.
  * \param seq The sequence length.
@@ -131,8 +131,8 @@ NetTensor *_Input(Context *ctx, vector<int> dims, string name, DataType type) {
  * \param type The data type of the tensor. Default is MLLM_TYPE_F32.
  * \return A pointer to the created tensor.
  */
-NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, int seq, int head, int dim, string name, DataType type) {
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Parameter(express::Context *ctx, std::vector<express::NetTensor *> inputs, int batch, int seq, int head, int dim, string name, DataType type) {
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Parameter" + std::to_string(ctx->idx);
     }
@@ -152,7 +152,7 @@ NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, 
 }
 /**
  * \brief Creates a range tensor from start to end. [start, end)
- * \param ctx The context in which the tensor is created.
+ * \param ctx The express::Context in which the tensor is created.
  * \param inputs {}
  * \param start start number
  * \param end end number
@@ -160,8 +160,8 @@ NetTensor *_Parameter(Context *ctx, std::vector<NetTensor *> inputs, int batch, 
  * \param type The data type of the tensor. Default is MLLM_TYPE_F32.
  * \return A pointer to the created tensor.
  */
-NetTensor *_Range(Context *ctx, std::vector<NetTensor *> inputs, int start, int end, string name, DataType type) {
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Range(express::Context *ctx, std::vector<express::NetTensor *> inputs, int start, int end, string name, DataType type) {
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Range" + std::to_string(ctx->idx);
     }
@@ -177,10 +177,10 @@ NetTensor *_Range(Context *ctx, std::vector<NetTensor *> inputs, int start, int 
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Add(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
+express::NetTensor *_Add(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
     // TODO:Check
-    NetTensor *out_tensor = new NetTensor();
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Add" + std::to_string(ctx->idx);
     }
@@ -194,9 +194,9 @@ NetTensor *_Add(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Causalmask(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Causalmask(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Causalmask" + std::to_string(ctx->idx);
     }
@@ -210,9 +210,9 @@ NetTensor *_Causalmask(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Transpose(std::vector<NetTensor *> inputs, std::vector<int> perm, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Transpose(std::vector<express::NetTensor *> inputs, std::vector<int> perm, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Transpose" + std::to_string(ctx->idx);
     }
@@ -231,9 +231,9 @@ NetTensor *_Transpose(std::vector<NetTensor *> inputs, std::vector<int> perm, st
     return out_tensor;
 }
 
-NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_SiLU(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Silu" + std::to_string(ctx->idx);
     }
@@ -248,9 +248,9 @@ NetTensor *_SiLU(std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-NetTensor *_SuperSiLU(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_SuperSiLU(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Silu" + std::to_string(ctx->idx);
     }
@@ -264,9 +264,9 @@ NetTensor *_SuperSiLU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Quantize(std::vector<express::NetTensor *> inputs, bool isNSHD, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Quantize" + std::to_string(ctx->idx);
     }
@@ -281,9 +281,9 @@ NetTensor *_Quantize(std::vector<NetTensor *> inputs, bool isNSHD, string name) 
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD, string name, bool isFP32) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Dequantize(std::vector<express::NetTensor *> inputs, bool isNSHD, string name, bool isFP32) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Dequantize" + std::to_string(ctx->idx);
     }
@@ -305,9 +305,9 @@ NetTensor *_Dequantize(std::vector<NetTensor *> inputs, bool isNSHD, string name
 /**
  * \param axis The axis along which the softmax is performed. e.g. DIMENSION.
  */
-NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, int do_causal_mask, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Softmax(std::vector<express::NetTensor *> inputs, int axis, int do_causal_mask, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Softmax" + std::to_string(ctx->idx);
     }
@@ -327,9 +327,9 @@ NetTensor *_Softmax(std::vector<NetTensor *> inputs, int axis, int do_causal_mas
  * \param transpose0 Whether to transpose the first input tensor.
  * \param transpose1 Whether to transpose the second input tensor.
  */
-NetTensor *_Matmul(std::vector<NetTensor *> inputs, bool transpose0, bool transpose1, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Matmul(std::vector<express::NetTensor *> inputs, bool transpose0, bool transpose1, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Matmul" + std::to_string(ctx->idx);
     }
@@ -349,9 +349,9 @@ NetTensor *_Matmul(std::vector<NetTensor *> inputs, bool transpose0, bool transp
  * \param norm_size The size of the normed dimension.
  * \param epsilon Default is 1e-6.
  */
-NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilon, string name, bool isFP32) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_RMSNorm(std::vector<express::NetTensor *> inputs, int norm_size, float epsilon, string name, bool isFP32) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "RMSNorm" + std::to_string(ctx->idx);
     }
@@ -375,9 +375,9 @@ NetTensor *_RMSNorm(std::vector<NetTensor *> inputs, int norm_size, float epsilo
  * \param pose_type RoPR type, 4 for HuggingFace Hub, 2 for LLama, 3 for fuyu, NO_USE for 1.
  * This RoPE function is ready for optimization in the future.
  */
-NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_RoPE(std::vector<express::NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "RoPE" + std::to_string(ctx->idx);
     }
@@ -395,9 +395,9 @@ NetTensor *_RoPE(std::vector<NetTensor *> inputs, int pose_type, string name, in
     return out_tensor;
 }
 
-NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_IRoPE(std::vector<express::NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "IRoPE" + std::to_string(ctx->idx);
     }
@@ -416,9 +416,9 @@ NetTensor *_IRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, i
 }
 
 
-NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_QNNRoPE(std::vector<express::NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "RoPE" + std::to_string(ctx->idx);
     }
@@ -439,9 +439,9 @@ NetTensor *_QNNRoPE(std::vector<NetTensor *> inputs, int pose_type, string name,
     return out_tensor;
 }
 
-NetTensor *_QNNIRoPE(std::vector<NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_QNNIRoPE(std::vector<express::NetTensor *> inputs, int pose_type, string name, int rope_theta, int max_position_embeddings, bool isFP32) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "RoPE" + std::to_string(ctx->idx);
     }
@@ -465,9 +465,9 @@ NetTensor *_QNNIRoPE(std::vector<NetTensor *> inputs, int pose_type, string name
 /**
  * \param max_num The maximum number of positions.
  */
-NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, int hidden_dim, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_PositionalEmbedding(std::vector<express::NetTensor *> inputs, int max_num, int hidden_dim, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "PE" + std::to_string(ctx->idx);
     }
@@ -488,9 +488,9 @@ NetTensor *_PositionalEmbedding(std::vector<NetTensor *> inputs, int max_num, in
  * \param bias default is 0.
  * \param bias_after_scale whether to add bias after scale.
  */
-NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Scale(std::vector<express::NetTensor *> inputs, float scale, float bias, bool bias_after_scale, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Scale" + std::to_string(ctx->idx);
     }
@@ -512,9 +512,9 @@ NetTensor *_Scale(std::vector<NetTensor *> inputs, float scale, float bias, bool
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Linear(std::vector<express::NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Linear" + std::to_string(ctx->idx);
     }
@@ -535,9 +535,9 @@ NetTensor *_Linear(std::vector<NetTensor *> inputs, int in_features, int out_fea
  * \param in_dim The size of each input sample (i.e., input dimension).
  * \param out_dim The size of each output sample (i.e., output dimension).
  */
-NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_SparseLinear(std::vector<express::NetTensor *> inputs, int in_dim, int out_dim, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "SPARSELINEAR" + std::to_string(ctx->idx);
     }
@@ -557,9 +557,9 @@ NetTensor *_SparseLinear(std::vector<NetTensor *> inputs, int in_dim, int out_di
  * \param in_dim The size of each input sample (i.e., input dimension).
  * \param out_dim The size of each output sample (i.e., output dimension).
  */
-NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_SparseIdLinear(std::vector<express::NetTensor *> inputs, int in_dim, int out_dim, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "SPARSEIDLINEAR" + std::to_string(ctx->idx);
     }
@@ -579,9 +579,9 @@ NetTensor *_SparseIdLinear(std::vector<NetTensor *> inputs, int in_dim, int out_
  * \param in_dim The size of each input sample (i.e., input dimension).
  * \param out_dim The size of each output sample (i.e., output dimension).
  */
-NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Predictor(std::vector<express::NetTensor *> inputs, int in_dim, int out_dim, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Predictor" + std::to_string(ctx->idx);
     }
@@ -602,9 +602,9 @@ NetTensor *_Predictor(std::vector<NetTensor *> inputs, int in_dim, int out_dim, 
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_LinearINT8(std::vector<express::NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "LinearINT8" + std::to_string(ctx->idx);
     }
@@ -627,8 +627,8 @@ NetTensor *_LinearINT8(std::vector<NetTensor *> inputs, int in_features, int out
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-vector<NetTensor *> _LinearINT8ShadowMerge(std::vector<NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
-    Context *ctx = inputs[0]->ctx;
+vector<express::NetTensor *> _LinearINT8ShadowMerge(std::vector<express::NetTensor *> inputs, int in_features, int out_features, bool bias, string name) {
+    express::Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
         name = "LinearINT8SHADOW" + std::to_string(ctx->idx);
     }
@@ -638,10 +638,10 @@ vector<NetTensor *> _LinearINT8ShadowMerge(std::vector<NetTensor *> inputs, int 
     net_op_->param["out_features"] = out_features;
     net_op_->param["bias"] = (int)bias;
     _UPDATE_INPUT_TENSORS
-    vector<NetTensor *> out_tensors;
+    vector<express::NetTensor *> out_tensors;
     net_op_->out_size = 3;
     for (int i = 0; i < 3; ++i) {
-        NetTensor *out_tensor = new NetTensor();
+        express::NetTensor *out_tensor = new express::NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
         out_tensor->type = inputs[0]->type;
         ctx->idx++;
@@ -661,9 +661,9 @@ vector<NetTensor *> _LinearINT8ShadowMerge(std::vector<NetTensor *> inputs, int 
  * \param out_features The size of each output sample (i.e., output dimension).
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features, int out_features, int max_position, bool bias, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_LinearINT8ShadowCPU(std::vector<express::NetTensor *> inputs, int in_features, int out_features, int max_position, bool bias, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "LinearINT8SHADOWCPU" + std::to_string(ctx->idx);
     }
@@ -686,9 +686,9 @@ NetTensor *_LinearINT8ShadowCPU(std::vector<NetTensor *> inputs, int in_features
  * \param vocab_size The size of the vocabulary.
  * \param hidden_size The size of the hidden layer.
  */
-NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidden_size, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Embedding(std::vector<express::NetTensor *> inputs, int vocab_size, int hidden_size, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Embedding" + std::to_string(ctx->idx);
     }
@@ -704,10 +704,10 @@ NetTensor *_Embedding(std::vector<NetTensor *> inputs, int vocab_size, int hidde
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
+express::NetTensor *_Mul(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
     // TODO:Check
-    NetTensor *out_tensor = new NetTensor();
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Mul" + std::to_string(ctx->idx);
     }
@@ -721,9 +721,9 @@ NetTensor *_Mul(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_KVCache(std::vector<express::NetTensor *> inputs, int cache_max, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "KVCache" + std::to_string(ctx->idx);
     }
@@ -740,9 +740,9 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, int cache_max, string name)
     return out_tensor;
 }
 // kvcache for qnn chunk execute
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, bool share_input, int cache_max, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_KVCache(std::vector<express::NetTensor *> inputs, int n_rep, bool share_input, int cache_max, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "KVCache" + std::to_string(ctx->idx);
     }
@@ -764,9 +764,9 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, bool share_input
  * \param n_rep  if head size of K/V is different with Q, set n_rep > 1, the output will be replicated n_rep times.
  *               e.g. n_rep = 8 in TinyLLama.
  */
-NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_KVCache(std::vector<express::NetTensor *> inputs, int n_rep, int cache_max, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "KVCache" + std::to_string(ctx->idx);
     }
@@ -782,9 +782,9 @@ NetTensor *_KVCache(std::vector<NetTensor *> inputs, int n_rep, int cache_max, s
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_KVCacheNPU(std::vector<NetTensor *> inputs, int cache_max, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_KVCacheNPU(std::vector<express::NetTensor *> inputs, int cache_max, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "KVCache" + std::to_string(ctx->idx);
     }
@@ -799,9 +799,9 @@ NetTensor *_KVCacheNPU(std::vector<NetTensor *> inputs, int cache_max, string na
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_ReLU(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "ReLU" + std::to_string(ctx->idx);
     }
@@ -815,9 +815,9 @@ NetTensor *_ReLU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_ReLUSquaredActivation(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_ReLUSquaredActivation(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "ReLUSquaredActivation" + std::to_string(ctx->idx);
     }
@@ -831,9 +831,9 @@ NetTensor *_ReLUSquaredActivation(std::vector<NetTensor *> inputs, string name) 
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_GELU(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_GELU(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "GELU" + std::to_string(ctx->idx);
     }
@@ -847,9 +847,9 @@ NetTensor *_GELU(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_QuickGELU(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_QuickGELU(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "_QuickGELU" + std::to_string(ctx->idx);
     }
@@ -868,9 +868,9 @@ NetTensor *_QuickGELU(std::vector<NetTensor *> inputs, string name) {
  * \param bias If set to false, the layer will not learn an additive bias.
  * \param epsilon Default is 1e-6.
  */
-NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias, float epsilon, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_LayerNorm(std::vector<express::NetTensor *> inputs, int norm_size, bool bias, float epsilon, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "LayerNorm" + std::to_string(ctx->idx);
     }
@@ -892,8 +892,8 @@ NetTensor *_LayerNorm(std::vector<NetTensor *> inputs, int norm_size, bool bias,
  * \param split_dim_size The size of the dimension along which to split.
  * This _Split function is ready for optimization in the future.
  */
-vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name) {
-    Context *ctx = inputs[0]->ctx;
+vector<express::NetTensor *> _Split(std::vector<express::NetTensor *> inputs, int split_num, Chl split_dim, int split_dim_size, string name) {
+    express::Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
         name = "Split" + std::to_string(ctx->idx);
     }
@@ -903,10 +903,10 @@ vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl s
     net_op_->param["split_dim"] = (int)split_dim;
     net_op_->param["split_dim_size"] = (int)split_dim_size;
     _UPDATE_INPUT_TENSORS
-    vector<NetTensor *> out_tensors;
+    vector<express::NetTensor *> out_tensors;
     net_op_->out_size = split_num;
     for (int i = 0; i < split_num; ++i) {
-        NetTensor *out_tensor = new NetTensor();
+        express::NetTensor *out_tensor = new express::NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
         out_tensor->type = inputs[0]->type;
         ctx->idx++;
@@ -919,9 +919,9 @@ vector<NetTensor *> _Split(std::vector<NetTensor *> inputs, int split_num, Chl s
     }
     return out_tensors;
 }
-NetTensor *_Gather(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Gather(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Gather" + std::to_string(ctx->idx);
     }
@@ -943,9 +943,9 @@ NetTensor *_Gather(std::vector<NetTensor *> inputs, string name) {
  * \param padding The type of padding applied to the input. Default is VALID.
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_Convolution2D(std::vector<NetTensor *> inputs, int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Convolution2D(std::vector<express::NetTensor *> inputs, int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Convolution2D" + std::to_string(ctx->idx);
     }
@@ -975,9 +975,9 @@ NetTensor *_Convolution2D(std::vector<NetTensor *> inputs, int in_channel, int o
  * \param padding The type of padding applied to the input.
  * \param bias If set to false, the layer will not learn an additive bias. Default is true.
  */
-NetTensor *_Convolution3D(std::vector<NetTensor *> inputs, int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Convolution3D(std::vector<express::NetTensor *> inputs, int in_channel, int out_channel, vector<int> kernal, vector<int> stride, PaddingType padding, bool bias, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Convolution3D" + std::to_string(ctx->idx);
     }
@@ -1006,9 +1006,9 @@ NetTensor *_Convolution3D(std::vector<NetTensor *> inputs, int in_channel, int o
  * \param stride The stride of the convolution.
  * \param padding The type of padding applied to the input.
  */
-NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_AvgPool2D(std::vector<express::NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "AvgPool2D" + std::to_string(ctx->idx);
     }
@@ -1032,9 +1032,9 @@ NetTensor *_AvgPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
  * \param stride The stride of the convolution.
  * \param padding The type of padding applied to the input.
  */
-NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_MaxPool2D(std::vector<express::NetTensor *> inputs, vector<int> kernal, vector<int> stride, PaddingType padding, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "MaxPool2D" + std::to_string(ctx->idx);
     }
@@ -1056,9 +1056,9 @@ NetTensor *_MaxPool2D(std::vector<NetTensor *> inputs, vector<int> kernal, vecto
 /**
  * \param axis The axis along which the concat is performed.
  */
-NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Cat(std::vector<express::NetTensor *> inputs, Chl axis, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "_Cat" + std::to_string(ctx->idx);
     }
@@ -1073,9 +1073,9 @@ NetTensor *_Cat(std::vector<NetTensor *> inputs, Chl axis, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Division(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Division(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Division" + std::to_string(ctx->idx);
     }
@@ -1089,9 +1089,9 @@ NetTensor *_Division(std::vector<NetTensor *> inputs, string name) {
     out_tensor->ctx = ctx;
     return out_tensor;
 }
-NetTensor *_Replace(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_Replace(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "Replace" + std::to_string(ctx->idx);
     }
@@ -1106,9 +1106,9 @@ NetTensor *_Replace(std::vector<NetTensor *> inputs, string name) {
     return out_tensor;
 }
 
-NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
-    Context *ctx = inputs[0]->ctx;
-    NetTensor *out_tensor = new NetTensor();
+express::NetTensor *_WNop(std::vector<express::NetTensor *> inputs, int sync_type, string name) {
+    express::Context *ctx = inputs[0]->ctx;
+    express::NetTensor *out_tensor = new express::NetTensor();
     if (name.empty()) {
         name = "WNop" + std::to_string(ctx->idx);
     }
@@ -1124,18 +1124,18 @@ NetTensor *_WNop(std::vector<NetTensor *> inputs, int sync_type, string name) {
     return out_tensor;
 }
 
-vector<NetTensor *>  _MergeOutput(std::vector<NetTensor *> inputs, string name) {
-    Context *ctx = inputs[0]->ctx;
+vector<express::NetTensor *>  _MergeOutput(std::vector<express::NetTensor *> inputs, string name) {
+    express::Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
         name = "Merge" + std::to_string(ctx->idx);
     }
     auto sub_param = get_active_subgraph(ctx);
     _NEW_OP(mllm::MERGEOUTPUT)
     _UPDATE_INPUT_TENSORS
-    vector<NetTensor *> out_tensors;
+    vector<express::NetTensor *> out_tensors;
     net_op_->out_size = inputs.size();
     for (int i = 0; i < inputs.size(); ++i) {
-        NetTensor *out_tensor = new NetTensor();
+        express::NetTensor *out_tensor = new express::NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
         out_tensor->type = inputs[i]->type;
         ctx->idx++;
@@ -1149,8 +1149,8 @@ vector<NetTensor *>  _MergeOutput(std::vector<NetTensor *> inputs, string name) 
     return out_tensors;
 }
 
-vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, int num, string name) {
-    Context *ctx = inputs[0]->ctx;
+vector<express::NetTensor *> _SplitInput(std::vector<express::NetTensor *> inputs, bool isPrompt, int num, string name) {
+    express::Context *ctx = inputs[0]->ctx;
     if (name.empty()) {
         name = "Split" + std::to_string(ctx->idx);
     }
@@ -1159,10 +1159,10 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     net_op_->param["isPrompt"] = (float)isPrompt;
     net_op_->param["num"] = (float)num;
     _UPDATE_INPUT_TENSORS
-    vector<NetTensor *> out_tensors;
+    vector<express::NetTensor *> out_tensors;
     net_op_->out_size = inputs.size();
     for (int i = 0; i < inputs.size(); ++i) {
-        NetTensor *out_tensor = new NetTensor();
+        express::NetTensor *out_tensor = new express::NetTensor();
         out_tensor->name = "outtensor-" + name + "-0" + std::to_string(i);
         out_tensor->type = inputs[i]->type;
         ctx->idx++;
@@ -1176,7 +1176,7 @@ vector<NetTensor *> _SplitInput(std::vector<NetTensor *> inputs, bool isPrompt, 
     return out_tensors;
 }
 
-void _SubgraphBegin(Context *ctx, BackendType backend) {
+void _SubgraphBegin(express::Context *ctx, BackendType backend) {
     ctx->active_sub++;
     ctx->next_backend = backend;
 }

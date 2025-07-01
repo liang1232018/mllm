@@ -9,6 +9,8 @@
 
 namespace mllm {
 
+using namespace express;
+
 QNNNet::QNNNet(BackendConfig config, Context *ctx) :
     Net(config) {
     backends_.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create(config));

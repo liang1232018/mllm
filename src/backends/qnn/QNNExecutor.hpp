@@ -35,8 +35,8 @@ public:
     };
 
     // used for assigning graph backends execuation
-    virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
-    virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
+    virtual void run(express::Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor);
+    virtual void warmup(express::Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) {};
 
     /**
      * \brief Setup&Executes the foreword propagation of provided network
@@ -76,8 +76,8 @@ public:
         QNNExecutor(data_loader), chunk_size_(chunk_size) {
     }
 
-    virtual void run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
-    virtual void warmup(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
+    virtual void run(express::Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
+    virtual void warmup(express::Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_tensor) override;
 };
 
 } // namespace mllm

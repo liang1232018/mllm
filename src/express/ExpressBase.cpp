@@ -5,6 +5,8 @@
 #include "ExpressBase.hpp"
 namespace mllm {
 
+using namespace express;
+
 #define _SET_OUT_TENSOR_NAME(out_tensor, name, net_op_, div_str)   \
     std::string prefix = "outtensor";                             \
     if (name.compare(0, prefix.size(), prefix) == 0) {            \

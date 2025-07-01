@@ -15,7 +15,7 @@
 
 using namespace std;
 
-
+using namespace express;
 
 void img2Tensor(shared_ptr<Tensor> input_tensor, Net &net, float* img, int height, int width, int channel) {
     input_tensor->setBackend(net.backends()[BackendType::MLLM_CPU].get());

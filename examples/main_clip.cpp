@@ -13,6 +13,8 @@
 
 using namespace mllm;
 
+using namespace express;
+
 vector<float> softmax(const vector<float>& scores) {
     vector<float> exps;
     float max_val = *max_element(scores.begin(), scores.end());

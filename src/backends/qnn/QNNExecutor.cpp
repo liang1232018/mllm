@@ -18,6 +18,8 @@
 #include "express/ExpressBase.hpp"
 
 namespace mllm {
+
+using namespace express;
 // for print graph execute time
 #define QNN_EXECUTE_TIME 1
 

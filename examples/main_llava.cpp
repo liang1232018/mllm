@@ -8,6 +8,8 @@
 #include "tokenizers/BPE/Bpe.hpp"
 #include "processor/ClipPreProcess.hpp"
 
+using namespace express;
+
 void print2DVetcors(std::vector<std::vector<float>> chunk_feats) {
     std::cout << std::fixed;
     std::cout << std::setprecision(4);
