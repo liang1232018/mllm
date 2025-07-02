@@ -60,7 +60,7 @@ public:
         head_size_ = head_size;
         kv_head_size_ = head_size;
 
-        norm1 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._attn_norm_name);
+        norm1 = RMSNorm(hidden_dim, 1e-6, base_name + names._attn_norm_name, true);
 
         // attention
         auto attn_base_name = base_name + names._attn_base_name;
@@ -95,7 +95,7 @@ public:
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize", MLLM_TYPE_I16);
         up_proj = Linear(hidden_dim, ffn_hidden, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         act = ACT_FN[act_fn_type](mlp_base_name + "act");
 
@@ -105,7 +105,7 @@ public:
 
         post_mlp_res_add = Add(mlp_base_name + "res_add");
 
-        norm2 = LayerNorm(hidden_dim, true, 1e-6, base_name + names._ffn_norm_name);
+        norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name, true);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto after_norm1 = norm1(inputs[0]);
@@ -184,13 +184,36 @@ public:
     }
 };
 
+class RotationPatchMerger final : public Module {
+    int hidden_size;
+    Layer ln_q;
+    Layer mlp0;
+    Layer gelu;
+    Layer mlp2;
+public:
+    RotationPatchMerger() = default;
+    RotationPatchMerger(int dim, int context_dim, int spatial_merge_size, const Qwen2VLNameConfig &names, const string &base_name) {
+        hidden_size = context_dim * (spatial_merge_size*spatial_merge_size);
+        ln_q = RMSNorm(context_dim, 1e-6, base_name + names._ln_q_name, true);
+        mlp0 = Linear(hidden_size, hidden_size, true, base_name + names._m_mlp_0_name);
+        gelu = GELU(base_name + ".gelu");
+        mlp2 = Linear(hidden_size, dim, true, base_name + names._m_mlp_2_name);
+    }
+    vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
+        auto x = inputs[0];
+        x = mlp2(gelu(mlp0(ln_q(x).view(1, 1, -1, hidden_size))));
+        return {x};
+    }
+};
+
+
 class Qwen2VisionModel_NPU : public Module {
     Qwen2PatchEmbedForNPU patch_embed;
 
     Layer rot_pos_emb, rot_pos_emb_sin, rot_pos_emb_cos;
     Layer pre_layrnorm;
     vector<VisionBlock_NPU> blocks;
-    PatchMerger patch_merger;
+    RotationPatchMerger patch_merger;
 
     SubgraphStart _SubgraphStart;
     SubgraphFinalize _SubgraphEnd;
@@ -210,7 +233,7 @@ public:
         rot_pos_emb_cos = VisionRoPECos((vision_embed_dim / head_size) / 2, spatial_merge_size, base_name + ".rot_pos_emb_cos");
 
         blocks = List<VisionBlock_NPU>(block_num, vision_embed_dim, head_size, mlp_hidden_dim, act_fn_type, names, base_name + names._layer_name);
-        patch_merger = PatchMerger(hidden_dim, vision_embed_dim, spatial_merge_size, names, base_name + names._merger_name);
+        patch_merger = RotationPatchMerger(hidden_dim, vision_embed_dim, spatial_merge_size, names, base_name + names._merger_name);
 
         _SubgraphStart = SubgraphStart(base_name + "subgraph_start");
         _SubgraphEnd = SubgraphFinalize(base_name + "subgraph_end");
@@ -229,7 +252,7 @@ public:
 
         _SubgraphStart({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos});
 
-        for (int i = 0; i < 1 && i < blocks.size(); i++) {
+        for (int i = 0; i < 1 && i < 1; i++) {
             auto outputs = blocks[i]({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos});
             _SubgraphEnd(outputs);
             hidden_states = outputs[0];

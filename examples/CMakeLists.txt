@@ -111,6 +111,7 @@ if(QNN)
     # func_llm_add_executable(test_split)
     # func_llm_add_executable(test_rope)
     # func_llm_add_executable(test_softmax)
+    # func_llm_add_executable(test_quickgelu)
 
     func_vlm_add_executable(demo_qwen2_vl_npu)
 endif()
