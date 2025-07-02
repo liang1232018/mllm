@@ -93,34 +93,6 @@ public:
     Module() {}
     virtual ~Module() = default;
 
-    static void initBackend(BackendType type = BackendType::MLLM_CPU) {
-        if (Backend::global_backends.find(type) == Backend::global_backends.end() || Backend::global_backends[type] == nullptr) {
-            switch (type) {
-            case BackendType::MLLM_CPU: {
-                shared_ptr<MemoryManager> mm = nullptr;
-                // mm = std::make_shared<SystemMemoryManager>();
-                mm = std::make_shared<MemoryPoolManager>(); // todomm
-                Backend::global_backends[MLLM_CPU] = new CPUBackend(mm);
-                break;
-            }
-#ifdef USE_QNN
-            case BackendType::MLLM_QNN: {
-                Backend::global_backends.emplace(MLLM_QNN, GetBackendCreator(MLLM_QNN)->create({}));
-                break;
-            }
-#endif
-#ifdef MLLM_BUILD_XNNPACK_BACKEND
-            case BackendType::MLLM_XNNPACK: {
-                Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
-                break;
-            }
-#endif
-            default: {
-            }
-            }
-        }
-    }
-
     void load(string path) {
         // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
         loader = new ParamLoader(std::move(path), true); // TODO mmap
