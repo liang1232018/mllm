@@ -8,9 +8,9 @@
 using namespace mllm;
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/showui_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/showui_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/showui-2B-rotated-q40.mllm");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2vl_vocab.mllm");
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2vl_merges.txt");
+    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-2-vl-2b-instruct-q4_k.mllm");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 2000);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -30,9 +30,9 @@ int main(int argc, char **argv) {
     model.load(model_path);
 
     vector<string> in_imgs = {
-        "../assets/showui.png"};
+        "../assets/bus.png"};
     vector<string> in_strs = {
-        "Based on the screenshot of the page, I give a text description and you give its corresponding location. The coordinate represents a clickable location [x, y] for an element, which is a relative coordinate on the screenshot, scaled from 0 to 1.<|vision_start|><|image_pad|><|vision_end|>桌面",
+        "<|vision_start|><|image_pad|><|vision_end|>Imagine you are describing this image to someone who cannot see it. Explain everything you observe, including the background, subjects, their expressions, and any activities they appear to be doing.",
     };
 
     for (int i = 0; i < in_strs.size(); ++i) {
@@ -54,6 +54,8 @@ int main(int argc, char **argv) {
         }
         printf("\n");
     }
+
+    model.profiling();
 
     return 0;
 }

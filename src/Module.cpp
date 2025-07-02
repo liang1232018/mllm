@@ -38,6 +38,7 @@ vector<double> Module::profiling(string name) {
     std::cout << "  Load time: " << load_time_ / 1000.0F << " s" << std::endl;
     if (inference_times_.size() > 1 && decoding_token_size_ != prefilling_token_size_) {
         double prefile_speed = 1000 * prefilling_token_size_ / inference_times_[0];
+        std::cout << "  Prefilling latency: " << inference_times_[0] / 1000.0F << " s" << std::endl;
         std::cout << "  Prefilling speed: " << prefile_speed << " tokens/s" << std::endl;
         double sum_decoding_time = std::accumulate(std::begin(inference_times_) + 1, std::end(inference_times_), 0.0);
         double mean_decoding_time = sum_decoding_time / (inference_times_.size() - 1);
@@ -60,7 +61,6 @@ vector<double> Module::profiling(string name) {
     prefilling_token_size_ = 0;
     decoding_token_size_ = 0;
     inference_times_.clear();
-    last_shape_bshd_.clear();
 
     return output;
 }

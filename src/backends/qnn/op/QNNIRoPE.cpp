@@ -24,8 +24,6 @@ QNNIRoPE::QNNIRoPE(Backend *bn, string opName, int pose_type) :
     sinTensor_.setBackend(bn);
     cosTensor_.setBackend(bn);
     hcntTensor_.setBackend(bn);
-
-    scale_.setBackend(bn);
 }
 
 QNNIRoPE::QNNIRoPE(Backend *bn, string opName, int pose_type, float rope_theta, int max_position_embeddings) :
@@ -37,8 +35,6 @@ QNNIRoPE::QNNIRoPE(Backend *bn, string opName, int pose_type, float rope_theta, 
     sinTensor_.setBackend(bn);
     cosTensor_.setBackend(bn);
     hcntTensor_.setBackend(bn);
-
-    scale_.setBackend(bn);
 }
 
 QNNIRoPE::QNNIRoPE(Backend *bn, string opName, int pose_type, float rope_theta, float partial_rotary_factor, int max_position_embeddings) :
@@ -51,8 +47,6 @@ QNNIRoPE::QNNIRoPE(Backend *bn, string opName, int pose_type, float rope_theta, 
     sinTensor_.setBackend(bn);
     cosTensor_.setBackend(bn);
     hcntTensor_.setBackend(bn);
-
-    scale_.setBackend(bn);
 }
 
 ErrorCode QNNIRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -66,6 +60,7 @@ ErrorCode QNNIRoPE::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr
 }
 
 ErrorCode QNNIRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
+    float dequantScale = inputs[0]->quant_param.scale;
     // in case ishape is 0 when Op is the first one in the graph
 
     if (sin_.empty() || ishape_old < ishape || global_pose_type_ != pose_type_ ) {
@@ -89,10 +84,6 @@ ErrorCode QNNIRoPE::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<T
         qnnBackend_->pushOutputBuffers(outputs[0]->hostPtr<uint8_t>());
     }
 #endif
-
-    float dequantScale = 0;
-    dequantScale = scale_.hostPtr<float>()[0] / 127.0;
-    // dequantScale = roundf(dequantScale * 100000) / 100000;
 
     if (name().find("q_proj") != -1) {
         dequantScale = dequantScale / std::sqrt(outputs[0]->dimension());
@@ -259,23 +250,6 @@ ErrorCode QNNIRoPE::load(AbstructLoader &loader) {
     hcntTensor_.reshape(1, 1, 1, 1);
     hcntTensor_.setDtype(MLLM_TYPE_I32);
     hcntTensor_.alloc();
-
-
-    string scaleName = name();
-    string scaleTypeName = "output_scale";
-
-    std::string wordToRemove = "rope";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-    }
-
-    scale_.setName(scaleName + scaleTypeName);
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
-
     return Op::load(loader);
 }
 

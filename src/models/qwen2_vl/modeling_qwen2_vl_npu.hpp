@@ -51,17 +51,23 @@ public:
 
         pre_attn_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, config.use_i32_bias, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._v_proj_name);
 
         q_view = View(1, num_heads, chunk_size, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        if (config.use_i32_bias) {
+            q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        } else {
+            q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        }
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -108,17 +114,23 @@ public:
 
         pre_attn_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, num_heads * head_dim, base_name + "ires_split-00_view_");
 
-        q_proj = Linear(hidden_size, num_heads * head_dim, false, base_name + names._q_proj_name);
-        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._k_proj_name);
-        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, false, base_name + names._v_proj_name);
+        q_proj = Linear(hidden_size, num_heads * head_dim, config.use_i32_bias, base_name + names._q_proj_name);
+        k_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._k_proj_name);
+        v_proj = Linear(hidden_size, num_key_value_heads * head_dim, config.use_i32_bias, base_name + names._v_proj_name);
 
         q_view = View(1, num_heads, chunk_size, head_dim, base_name + names._q_proj_name + "-00_view_");
         k_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._k_proj_name + "-00_view_");
         v_view = View(1, num_key_value_heads, chunk_size, head_dim, base_name + names._v_proj_name + "-00_view_");
 
-        q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
-        k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
-        v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        if (config.use_i32_bias) {
+            q_dequant = Dequantize(true, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = Dequantize(true, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = Dequantize(true, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        } else {
+            q_dequant = DequantizeAdd(true, num_heads * head_dim, base_name + names._q_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+            k_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._k_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+            v_dequant = DequantizeAdd(true, num_key_value_heads * head_dim, base_name + names._v_proj_name + ".dequantize", false, MLLM_TYPE_I16);
+        }
 
         v_transpose = Transpose({0, 2, 3, 1}, base_name + names._v_proj_name + ".transpose");
     }
@@ -203,7 +215,7 @@ public:
 
         // TODO: remove it
         auto qkv_end = mllm_time_ms();
-        std::cout << "QKV mm time: " << qkv_end - qkv_start << "ms" << std::endl;
+        // std::cout << "QKV mm time: " << qkv_end - qkv_start << "ms" << std::endl;
 
         return {o};
     }
@@ -268,7 +280,13 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+
+        if (config.use_high_precision_silu) {
+            silu = SiLU_Full_Precision(mlp_base_name + "act");
+        } else {
+            silu = SiLU(mlp_base_name + "act");
+        }
+
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
@@ -345,7 +363,13 @@ public:
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize");
         pre_mlp_view = View(1, utils::closestFactors(chunk_size).first, utils::closestFactors(chunk_size).second, hidden_size, mlp_base_name + names._up_proj_name + ".quantize-00_view_");
         gate_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._gate_proj_name);
-        silu = SiLU(mlp_base_name + "act");
+
+        if (config.use_high_precision_silu) {
+            silu = SiLU_Full_Precision(mlp_base_name + "act");
+        } else {
+            silu = SiLU(mlp_base_name + "act");
+        }
+
         up_proj = Linear(hidden_size, intermediate_size, false, mlp_base_name + names._up_proj_name);
         post_up_proj_dequantize = Dequantize(true, mlp_base_name + names._up_proj_name + ".dequantize");
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize");
@@ -885,7 +909,7 @@ public:
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");
         } else {
-            lm_head_layer = HeadLinear(config.hidden_size, config.vocab_size, false, qwen_names.lm_head_name);
+            lm_head_layer = HeadLinear(config.hidden_size, config.vocab_size, false, qwen_names.token_embd_name);
         }
     }
 
@@ -898,24 +922,24 @@ public:
         // }
         // TODO: remove it
         for (auto i = 0; i < blocks.size(); ++i) {
-            auto start_time = mllm_time_ms();
+            // auto start_time = mllm_time_ms();
             hidden_states = (*blocks[i])({hidden_states, position_ids})[0];
-            auto end_time = mllm_time_ms();
-            std::cout << "-----------------" << "block " << i << " time: " << end_time - start_time << "ms" << std::endl;
+            // auto end_time = mllm_time_ms();
+            // std::cout << "-----------------" << "block " << i << " time: " << end_time - start_time << "ms" << std::endl;
         }
 
         hidden_states = norm(hidden_states);
 
-        // TODO: remove it
-        auto start_time = mllm_time_ms();
+        // // TODO: remove it
+        // auto start_time = mllm_time_ms();
         if (tie_embedding_words) {
             hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         } else {
             hidden_states = lm_head_layer(hidden_states);
         }
-        // TODO: remove it
-        auto end_time = mllm_time_ms();
-        std::cout << "-----------------" << "lm_head time: " << end_time - start_time << "ms" << std::endl;
+        // // TODO: remove it
+        // auto end_time = mllm_time_ms();
+        // std::cout << "-----------------" << "lm_head time: " << end_time - start_time << "ms" << std::endl;
         return {hidden_states};
     }
 };
@@ -924,7 +948,7 @@ public:
 class Qwen2VL_Decoding_Model final : public Module {
     Layer embed_tokens;
 
-    vector<QWenDecoder> blocks;
+    vector<QWen2Decoder> blocks;
     Layer norm;
     Parameter lm_head;
     Layer lm_head_layer;
@@ -955,7 +979,7 @@ public:
 
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
 
-        blocks = List<QWenDecoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
+        blocks = List<QWen2Decoder>(config.num_hidden_layers, config, qwen_names, qwen_names.blk_name);
         norm = RMSNorm(hidden_dim, 1e-6, qwen_names.post_norm_name);
         if (tie_embedding_words) {
             lm_head = Parameter(1, config.vocab_size, 1, config.hidden_size, qwen_names.token_embd_name + ".weight");

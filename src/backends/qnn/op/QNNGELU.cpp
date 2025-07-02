@@ -21,25 +21,7 @@ ErrorCode QNNGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Te
     for(int i = 0; i < inputs.size(); ++i) {
         outputs[i]->setDtype(inputs[i]->dtype());
     }
-    return graphAddNode(name(), "Gelu", inputs, outputs, {}, "qti.aisw", true, &scale_);
-}
-
-ErrorCode QNNGELU::load(AbstructLoader &loader) {
-    string scaleName = name();
-
-    std::string wordToRemove = "gelu";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-    }
-
-    scale_.setName(scaleName + "input_scale");
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
-
-    return Op::load(loader);
+    return graphAddNode(name(), "Gelu", inputs, outputs, {}, "qti.aisw", true);
 }
 
 } // namespace mllm
