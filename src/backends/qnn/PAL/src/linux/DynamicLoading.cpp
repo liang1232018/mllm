@@ -13,7 +13,7 @@
 #include "Log.h"
 #include "PAL/Debug.hpp"
 #include "PAL/DynamicLoading.hpp"
-const std::vector<std::string> LIB_PREFIX = {"/system/lib64/", "/odm/lib64/", "/vendor/lib64/", "/data/local/tmp/mllm/qnn-lib/", "/system_ext/lib64/"};
+const std::vector<std::string> LIB_PREFIX = {"/system/lib64/", "/odm/lib64/", "/vendor/lib64/", "/system_ext/lib64/"};
 void *pal::dynamicloading::dlOpen(const char *filename, int flags) {
   int realFlags = 0;
 
@@ -37,7 +37,8 @@ void *pal::dynamicloading::dlOpen(const char *filename, int flags) {
           if (res) {
               break;
           }
-          MLLM_LOG_ERROR("{} not found", prefix);
+          const char *error = ::dlerror();
+          MLLM_LOG_ERROR("{} not found: {}", prefix, error);
       }
   }
   return res;
