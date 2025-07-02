@@ -28,7 +28,7 @@ public:
         std::cout << "num_graph: " << num_graph << std::endl;
 
         for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            chunked_tensors.push_back(std::make_shared<Tensor>(Backend::global_backends[MLLM_CPU]));
+            chunked_tensors.push_back(std::make_shared<Tensor>(Context::Instance().globalBackends(MLLM_CPU)));
             chunked_tensors[chunk_id]->setTtype(INPUT_TENSOR);
             chunked_tensors[chunk_id]->setName(input_tensor.name());
             chunked_tensors[chunk_id]->reshape(1, 1, chunk_size, 1);

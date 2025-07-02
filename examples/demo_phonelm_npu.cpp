@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
     // warmup END
     std::cout << "Warmup finished." << std::endl;
     if (!std::filesystem::exists("qnn_context.bin")) {
-        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
+        Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
     }
 
 
@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
         };
 
         for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-            chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU]);
+            chunked_tensors[chunk_id].setBackend(Context::Instance().globalBackends(MLLM_CPU));
             chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
             chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
             chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));

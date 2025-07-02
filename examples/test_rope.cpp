@@ -14,7 +14,7 @@ auto main() -> int {
     Context::Instance().initBackend(MLLM_CPU);
     Context::Instance().initBackend(MLLM_QNN);
 
-    auto cpuBackend = static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU]);
+    auto cpuBackend = Context::Instance().globalBackends<CPUBackend>(MLLM_CPU);
 
     auto image_size = std::make_shared<Tensor>(cpuBackend);
     image_size->reshape(1, 1, 1, 3);
@@ -62,7 +62,7 @@ auto main() -> int {
     apply_rope->execute({image_output}, {image_input,  pos_id}, {});
     image_output->printData<float>();
 
-    auto qnnBackend = static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN]);
+    auto qnnBackend = Context::Instance().globalBackends<QNNBackend>(MLLM_QNN);
     auto qnnInput = std::make_shared<Tensor>(qnnBackend);
     qnnInput->reshape(1, 1, 4, 4);
     qnnInput->setDtype(MLLM_TYPE_F32);

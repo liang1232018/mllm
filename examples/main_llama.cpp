@@ -67,7 +67,7 @@ NetTensor *FFN(NetTensor *i, int hidden_dim, int ffn_hidden_dim, string name) {
     x = _Linear({x}, ffn_hidden_dim, hidden_dim, false, name + ".w2");
     return x;
 }
-void llama(Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
+void llama(express::Context *c, int vocab_size = 32000, int hidden_dim = 4096, int ffn_hidden_dim = 11008, int mutil_head_size = 32, int cache_max = 200) {
     auto *i = _Input(c);
     i = _Embedding({i}, vocab_size, hidden_dim, (string) "tok_embeddings");
     // loop
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
     int ffn_hidden_dim = 11008;
     int mutil_head_size = 32;
 
-    std::unique_ptr<Context> c_ptr(new Context());
+    std::unique_ptr<express::Context> c_ptr(new express::Context());
     auto *c = c_ptr.get();
     llama(c, vocab_size, hidden_dim, ffn_hidden_dim, mutil_head_size, tokens_limit);
 

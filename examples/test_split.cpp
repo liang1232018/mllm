@@ -12,7 +12,7 @@ auto main() -> int {
     Context::Instance().initBackend(MLLM_CPU);
     Context::Instance().initBackend(MLLM_QNN);
 
-    auto qnnBackend = static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN]);
+    auto qnnBackend = Context::Instance().globalBackends<QNNBackend>(MLLM_QNN);
 
     auto input = std::make_shared<Tensor>(qnnBackend);
     input->reshape(1, 1, 2, 6);

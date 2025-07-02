@@ -469,8 +469,8 @@ private:
         }
         const size_t batch_size = input_ids.batch();                      // input_ids.size();
         const size_t seq_len = batch_size > 0 ? input_ids.sequence() : 0; // batch_size > 0 ? input_ids[0].size() : 0;
-        Tensor position_ids(3, 1, batch_size, seq_len, Backend::global_backends[MLLM_CPU], true);
-        Tensor mrope_position_deltas(1, 1, 1, batch_size, Backend::global_backends[MLLM_CPU], true);
+        Tensor position_ids(3, 1, batch_size, seq_len, Context::Instance().globalBackends(MLLM_CPU), true);
+        Tensor mrope_position_deltas(1, 1, 1, batch_size, Context::Instance().globalBackends(MLLM_CPU), true);
         bool has_vision = (image_grid_thw.sequence() > 0) || (video_grid_thw.sequence() > 0); // image_grid_thw || video_grid_thw;
         if (!has_vision) {
             // Pure text case

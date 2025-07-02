@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
         isSwitched = false;
 
         Tensor decoding_input;
-        decoding_input.setBackend(Backend::global_backends[MLLM_CPU]);
+        decoding_input.setBackend(Context::Instance().globalBackends(MLLM_CPU));
         decoding_input.setTtype(INPUT_TENSOR);
         decoding_input.reshape(1, 1, 1, 1);
         decoding_input.setName("input0");

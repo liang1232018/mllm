@@ -15,7 +15,7 @@ using namespace mllm;
 class ImagebindProcessor final : public ClipProcessor {
     static Tensor tokens2Input(vector<vector<token_id_t>> tokens, int max_pos, string name = "input", BackendType type = MLLM_CPU) {
         const auto bsize = static_cast<int>(tokens.size());
-        Tensor tensor1(bsize, 1, max_pos, 1, Backend::global_backends[type], true);
+        Tensor tensor1(bsize, 1, max_pos, 1, Context::Instance().globalBackends(type), true);
         tensor1.setName(name);
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
@@ -34,7 +34,7 @@ class ImagebindProcessor final : public ClipProcessor {
         int channel = imgs[0].size();
         int height = imgs[0][0].size();
         int width = imgs[0][0][0].size();
-        Tensor tensor1(Backend::global_backends[type]);
+        Tensor tensor1(Context::Instance().globalBackends(type));
         tensor1.reshape(imgs.size(), channel, 2, height, width);
         tensor1.setDtype(MLLM_TYPE_F32);
         tensor1.alloc();
@@ -66,7 +66,7 @@ class ImagebindProcessor final : public ClipProcessor {
         int height = audio_new[0].size();
         int width = audio_new[0][0].size();
 
-        Tensor tensor1(batch, height, channel, width, Backend::global_backends[type], true);
+        Tensor tensor1(batch, height, channel, width, Context::Instance().globalBackends(type), true);
         tensor1.setName(std::move(name));
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);

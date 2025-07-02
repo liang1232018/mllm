@@ -189,7 +189,7 @@ class FuyuProcessor final : public PreProcessor {
             seq = image_patches[0].size();
             dims = image_patches[0][0].size();
         }
-        Tensor tensor1(batch, 1, seq, dims, Backend::global_backends[type], true);
+        Tensor tensor1(batch, 1, seq, dims, Context::Instance().globalBackends(type), true);
         tensor1.setName(name);
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);
@@ -210,7 +210,7 @@ class FuyuProcessor final : public PreProcessor {
             batch = image_patches_indices.size();
             seq = image_patches_indices[0].size();
         }
-        Tensor tensor1(batch, 1, seq, 1, Backend::global_backends[type], true);
+        Tensor tensor1(batch, 1, seq, 1, Context::Instance().globalBackends(type), true);
         tensor1.setName(name);
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);

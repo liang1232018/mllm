@@ -4,6 +4,7 @@
 
 #ifndef MODULE_HPP
 #define MODULE_HPP
+#include "Context.hpp"
 #include "Generate.hpp"
 #include "Tensor.hpp"
 #include "Op.hpp"
@@ -107,7 +108,7 @@ public:
         vector<Tensor> tmps;
         int max_in_size = 5;
         for (int i = 0; i < max_in_size; ++i) {
-            Tensor t(Backend::global_backends[MLLM_CPU]);
+            Tensor t(Context::Instance().globalBackends(MLLM_CPU));
             t.setName("input" + std::to_string(i));
             t.reshape(1, 1, 1, 10);
             t.alloc();
@@ -147,9 +148,10 @@ public:
     template <typename... Args>
     vector<Tensor> operator()(vector<Tensor> inputs, Args... args) {
         vector<std::any> anyArgs = convertArgsToAnyVector(args...);
-        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU] : inputs[0].backend();
-        if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
-            backend = Backend::global_backends[MLLM_QNN];
+        auto backend = inputs.empty() ? Context::Instance().globalBackends(MLLM_CPU) : inputs[0].backend();
+        // TODO: multi backend dispatch
+        if (Context::Instance().globalBackends(MLLM_QNN) != nullptr) {
+            backend = Context::Instance().globalBackends(MLLM_QNN);
         }
         return backend->runForward(this, inputs, anyArgs);
     }
@@ -248,8 +250,8 @@ public:
     vector<shared_ptr<Tensor>> outputs_;
 
     virtual vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        Backend::global_backends[MLLM_QNN]->onExecuteStart(inputs_, outputs_, name_);
-        Backend::global_backends[MLLM_QNN]->onExecuteEnd(outputs_, name_);
+        Context::Instance().globalBackends(MLLM_QNN)->onExecuteStart(inputs_, outputs_, name_);
+        Context::Instance().globalBackends(MLLM_QNN)->onExecuteEnd(outputs_, name_);
         return {};
     }
 };

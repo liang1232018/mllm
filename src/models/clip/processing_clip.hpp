@@ -30,7 +30,7 @@ public:
         int channel = img.size();
         int height = img[0].size();
         int width = img[0][0].size();
-        Tensor tensor1(1, height, channel, width, Backend::global_backends[type], true);
+        Tensor tensor1(1, height, channel, width, Context::Instance().globalBackends(type), true);
         tensor1.setName(std::move(name));
         Tensor::tensor_status = TENSOR_STATIC_INIT;
         tensor1.setTtype(INPUT_TENSOR);

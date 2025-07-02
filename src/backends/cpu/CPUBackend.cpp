@@ -256,7 +256,7 @@ std::vector<Tensor> CPUBackend::runFunc(
     Module *module = input_tensors.empty() ? Module::llm_model_ptr : input_tensors[0]->module();
     auto &activation_tensors = module->activation_tensors;
     assert(module != nullptr);
-    Backend *backend = input_tensors.empty() ? Backend::global_backends[MLLM_CPU] : input_tensors[0]->backend();
+    Backend *backend = input_tensors.empty() ? Context::Instance().globalBackends(MLLM_CPU) : input_tensors[0]->backend();
     TensorFunction *func = backend->funcCreate(type);
 
     if (module->doLoad) {
@@ -402,7 +402,7 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
     if (module->doLoad || !layer->inited_loaded) {
         // set backend to current module device and try to create op
         // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
-        layer->backend_ = Backend::global_backends[MLLM_CPU];
+        layer->backend_ = Context::Instance().globalBackends(MLLM_CPU);
         do_init = !layer->inited_loaded;
         if (layer->op_ == nullptr) {
             layer->op_ = layer->backend_->opCreate(layer->param_, layer->name_);

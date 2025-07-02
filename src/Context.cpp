@@ -31,7 +31,7 @@ void Context::initBackend(BackendType type) {
 #endif
 #ifdef MLLM_BUILD_XNNPACK_BACKEND
         case BackendType::MLLM_XNNPACK: {
-            Backend::global_backends.emplace(MLLM_XNNPACK, GetBackendCreator(MLLM_XNNPACK)->create({}));
+            Context::Instance().initBackend(MLLM_XNNPACK);
             break;
         }
 #endif

@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     prefill_embedding.get_position_ids(input_tensors, chunk_size * num_iter);
 
     // warm up (still need a warm up as the setup stage is not omitted now)
-    auto merged_embd_warmup_tensor = Tensor(Backend::global_backends[MLLM_QNN]);
+    auto merged_embd_warmup_tensor = Tensor(Context::Instance().globalBackends(MLLM_QNN));
     merged_embd_warmup_tensor.reshape(1, 1, chunk_size, 1536);
     merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
     merged_embd_warmup_tensor.alloc();
@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
     std::cout << "Prefill:" << prefill_time << " ms" << std::endl;
 
     if (!std::filesystem::exists("qnn_context.bin")) {
-        static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
+        Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
     }
 
     return 0;

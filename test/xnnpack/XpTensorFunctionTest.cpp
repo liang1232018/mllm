@@ -31,8 +31,8 @@ TEST_F(XpTest, TTSub) {
         return;
     }
 
-    Tensor x1(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
-    Tensor x2(1, 1, 4, 4, Backend::global_backends[MLLM_XNNPACK], true);
+    Tensor x1(1, 1, 4, 4, Context::Instance().globalBackends(MLLM_XNNPACK), true);
+    Tensor x2(1, 1, 4, 4, Context::Instance().globalBackends(MLLM_XNNPACK), true);
     x1.setTtype(TensorType::INPUT_TENSOR);
     x2.setTtype(TensorType::INPUT_TENSOR);
 

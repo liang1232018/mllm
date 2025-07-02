@@ -34,7 +34,7 @@ Tensor::Tensor(int batch, int head, int sequence, int dimension, Backend *bn, bo
 Tensor::Tensor(int batch, int head, int sequence, int dimension, BackendType bn_type, bool do_alloc) :
     impl_(std::make_shared<TensorImpl>()) {
     impl_->dtype_ = MLLM_TYPE_F32;
-    impl_->backend_ = Backend::global_backends[bn_type];
+    impl_->backend_ = Context::Instance().globalBackends(bn_type);
     reshape(batch, head, sequence, dimension);
     if (do_alloc) {
         alloc();
@@ -59,7 +59,7 @@ Tensor::Tensor(int value, Backend *bn) :
 Tensor::Tensor(int value, BackendType bn_type) :
     impl_(std::make_shared<TensorImpl>()) {
     impl_->dtype_ = MLLM_TYPE_F32;
-    impl_->backend_ = Backend::global_backends[bn_type];
+    impl_->backend_ = Context::Instance().globalBackends(bn_type);
     reshape(1, 1, 1, 1);
     alloc();
     impl_->should_in_graphs_ = false;
@@ -69,7 +69,7 @@ Tensor::Tensor(int value, BackendType bn_type) :
 Tensor::Tensor(std::vector<float> values, BackendType bn_type) :
     impl_(std::make_shared<TensorImpl>()) {
     impl_->dtype_ = MLLM_TYPE_F32;
-    impl_->backend_ = Backend::global_backends[bn_type];
+    impl_->backend_ = Context::Instance().globalBackends(bn_type);
     reshape(1, 1, 1, values.size());
     alloc();
     impl_->should_in_graphs_ = false;
@@ -174,19 +174,19 @@ Tensor &Tensor::to(BackendType backend_type) {
             }
         } else {
             this->free();
-            module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-            this->setBackend(Backend::global_backends[backend_type]);
+            module()->activation_tensors[name()]->setBackend(Context::Instance().globalBackends(backend_type));
+            this->setBackend(Context::Instance().globalBackends(backend_type));
         }
         return *this;
     }
     if (backend_type == MLLM_CPU && device() == MLLM_XNNPACK) {
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->setBackend(Backend::global_backends[backend_type]);
+        module()->activation_tensors[name()]->setBackend(Context::Instance().globalBackends(backend_type));
+        this->setBackend(Context::Instance().globalBackends(backend_type));
         return *this;
     }
     if (backend_type == MLLM_XNNPACK && device() == MLLM_CPU) {
-        module()->activation_tensors[name()]->setBackend(Backend::global_backends[backend_type]);
-        this->setBackend(Backend::global_backends[backend_type]);
+        module()->activation_tensors[name()]->setBackend(Context::Instance().globalBackends(backend_type));
+        this->setBackend(Context::Instance().globalBackends(backend_type));
         return *this;
     }
 
@@ -199,9 +199,10 @@ std::vector<Tensor> Tensor::runFunc(std::vector<std::string> out_names,
                                     std::vector<float> float_args,
                                     std::vector<std::shared_ptr<Tensor>> input_tensors,
                                     bool in_place) {
-    auto backend = input_tensors.empty() ? Backend::global_backends[MLLM_CPU] : input_tensors[0]->backend();
-    if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
-        backend = Backend::global_backends[MLLM_QNN];
+    auto backend = input_tensors.empty() ? Context::Instance().globalBackends(MLLM_CPU) : input_tensors[0]->backend();
+    // TODO: multi backend dispatch
+    if (Context::Instance().globalBackends(MLLM_QNN) != nullptr) {
+        backend = Context::Instance().globalBackends(MLLM_QNN);
     }
     return backend->runFunc(out_names, type, float_args, input_tensors, in_place);
 }
@@ -354,7 +355,7 @@ std::vector<std::reference_wrapper<Tensor>> Tensor::getStaticFunc(vector<std::st
     assert(module != nullptr);
     auto &module_tensors = module->activation_tensors;
     auto &activation_tensors_num = module->activation_tensors_num;
-    auto *backend_h = Backend::global_backends[MLLM_CPU];
+    auto *backend_h = Context::Instance().globalBackends(MLLM_CPU);
     if (!input_tensors.empty() && input_tensors[0]->impl_->backend_ != nullptr) {
         backend_h = input_tensors[0]->backend();
     }

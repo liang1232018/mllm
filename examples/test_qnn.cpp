@@ -12,7 +12,7 @@ auto main() -> int {
     Context::Instance().initBackend(MLLM_CPU);
     Context::Instance().initBackend(MLLM_QNN);
 
-    auto qnnBackend = static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN]);
+    auto qnnBackend = Context::Instance().globalBackends<QNNBackend>(MLLM_QNN);
 
     auto input = std::make_shared<Tensor>(qnnBackend);
     input->reshape(1, 2, 2, 2);
@@ -61,7 +61,7 @@ auto main() -> int {
 
     output->printData<float>();
 
-    auto cpuMatmul = Backend::global_backends[MLLM_CPU]->opCreate(param, "cpu_matmul_op");
+    auto cpuMatmul = Context::Instance().globalBackends(MLLM_CPU)->opCreate(param, "cpu_matmul_op");
     cpuMatmul->reshape(inputs, outputs);
     cpuMatmul->setUp(inputs, outputs);
     cpuMatmul->execute(inputs, outputs);

@@ -29,6 +29,8 @@ public:
     virtual void execute(vector<shared_ptr<Tensor>> outputs, vector<shared_ptr<Tensor>> inputs, vector<float> args) = 0;
 };
 class Backend {
+    friend class Context;
+
 public:
     Backend(shared_ptr<MemoryManager> &mm) :
         mem_manager_(mm) {
@@ -97,11 +99,11 @@ public:
     BackendType type() const {
         return type_;
     }
-    static map<BackendType, Backend *> global_backends;
 
 protected:
     BackendType type_;
     shared_ptr<MemoryManager> mem_manager_;
+    static map<BackendType, Backend *> global_backends;
 };
 
 /**

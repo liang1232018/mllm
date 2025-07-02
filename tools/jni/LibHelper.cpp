@@ -210,7 +210,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             };
             std::vector<Tensor> chunked_tensors(chunk_num);
             for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-                chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU]);
+                chunked_tensors[chunk_id].setBackend(Context::Instance().globalBackends(MLLM_CPU));
                 chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
                 chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
                 chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));
@@ -368,7 +368,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
             };
             std::vector<Tensor> chunked_tensors(chunk_num);
             for (int chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-                chunked_tensors[chunk_id].setBackend(Backend::global_backends[MLLM_CPU]);
+                chunked_tensors[chunk_id].setBackend(Context::Instance().globalBackends(MLLM_CPU));
                 chunked_tensors[chunk_id].setTtype(INPUT_TENSOR);
                 chunked_tensors[chunk_id].reshape(1, 1, chunk_size, 1);
                 chunked_tensors[chunk_id].setName("input-chunk-" + to_string(chunk_id));

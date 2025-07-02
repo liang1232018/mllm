@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
         std::cout << "\n";
 
         if (!std::filesystem::exists("qnn_context.bin")) {
-            static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN])->saveQNNContext();
+            Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
         }
     }
 }

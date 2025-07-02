@@ -1,4 +1,4 @@
-
+#include "Context.hpp"
 #include "QNNLinearINT8.hpp"
 #include "Backend.hpp"
 #include "QnnTypes.h"
@@ -10,12 +10,12 @@
 namespace mllm {
 QNNLinearINT8::QNNLinearINT8(Backend *bn, string opName, int in_features, int out_features, bool bias) :
     QNNCommonOp(bn, opName), in_features_(in_features), out_features_(out_features), support_bias_(bias) {
-    weight_.setBackend(Backend::global_backends[MLLM_CPU]);
-    bias_.setBackend(Backend::global_backends[MLLM_CPU]);
+    weight_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
+    bias_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 
-    weightScale_.setBackend(Backend::global_backends[MLLM_CPU]);
-    biasScale_.setBackend(Backend::global_backends[MLLM_CPU]);
-    outputScale_.setBackend(Backend::global_backends[MLLM_CPU]);
+    weightScale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
+    biasScale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
+    outputScale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNLinearINT8::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

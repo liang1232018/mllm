@@ -839,7 +839,7 @@ std::vector<Tensor> QNNBackend::runFunc(std::vector<std::string> out_names,
     std::vector<std::shared_ptr<Tensor>> output_ptrs;
     for (const auto &out_name : out_names) {
         if (activation_tensors.find(out_name) == activation_tensors.end()) {
-            Backend *backend_h = Backend::global_backends[MLLM_CPU];
+            Backend *backend_h = Context::Instance().globalBackends(MLLM_CPU);
             if (!input_tensors.empty()) {
                 backend_h = input_tensors[0]->backend();
             }
@@ -859,7 +859,7 @@ std::vector<Tensor> QNNBackend::runFunc(std::vector<std::string> out_names,
         return results;
     }
 
-    Backend *backend_h = Backend::global_backends[MLLM_CPU];
+    Backend *backend_h = Context::Instance().globalBackends(MLLM_CPU);
     if (!input_tensors.empty()) {
         backend_h = input_tensors[0]->backend();
     }
@@ -994,10 +994,10 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
     if (module->doLoad || !layer->inited_loaded) {
         // set backend to current module device and try to create op
         // use Module::tmp_device only when creating the op as the recersive module backend only handled in load and init stage
-        layer->backend_ = Backend::global_backends[Module::tmp_device];
+        layer->backend_ = Context::Instance().globalBackends(Module::tmp_device);
         do_init = !layer->inited_loaded;
         if (layer->op_ == nullptr) {
-            if ((layer->param_["type"] == KVCACHE || layer->param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
+            if (layer->param_["type"] == KVCACHE || layer->param_["type"] == KVCACHENPU) {
                 if (kv_cache_map.find(layer->name_) == kv_cache_map.end()) {
                     // for the prefill part, we need to create a new op
                     layer->param_["type"] = KVCACHENPU;

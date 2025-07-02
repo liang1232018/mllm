@@ -34,7 +34,7 @@ public:
         name_ = std::move(name);
         param_["type"] = type;
         Context::Instance().initBackend(MLLM_CPU);
-        backend_ = Backend::global_backends[MLLM_CPU];
+        backend_ = Context::Instance().globalBackends(MLLM_CPU);
         saved_list_idx = Module::listIdx;
         init_ = true;
     }
@@ -69,7 +69,7 @@ public:
             return;
         if (op_ == nullptr) {
 #ifdef USE_QNN
-            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) && (Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end())) {
+            if ((param_["type"] == KVCACHE || param_["type"] == KVCACHENPU) && (Context::Instance().globalBackends(MLLM_QNN) != nullptr)) {
                 if (kv_cache_map.find(name_) == kv_cache_map.end()) {
                     // for the prefill part, we need to create a new op
                     param_["type"] = KVCACHENPU;
@@ -102,9 +102,10 @@ public:
 
 protected:
     vector<Tensor> run(vector<Tensor> inputs, int N = 1) {
-        auto backend = inputs.empty() ? Backend::global_backends[MLLM_CPU] : inputs[0].backend();
-        if (Backend::global_backends.size() == 2 && Backend::global_backends.find(MLLM_QNN) != Backend::global_backends.end()) {
-            backend = Backend::global_backends[MLLM_QNN];
+        auto backend = inputs.empty() ? Context::Instance().globalBackends(MLLM_CPU) : inputs[0].backend();
+        // TODO: multi backend dispatch
+        if (Context::Instance().globalBackends(MLLM_QNN) != nullptr) {
+            backend = Context::Instance().globalBackends(MLLM_QNN);
         }
         return backend->runLayer(this, inputs, N);
     }

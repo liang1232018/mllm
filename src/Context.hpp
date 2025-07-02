@@ -14,6 +14,15 @@ public:
         return Backend::global_backends[type];
     }
 
+    template<class T>
+    T *globalBackends(BackendType type) const {
+        auto backend = Backend::global_backends[type];
+        if (backend == nullptr) {
+            throw std::runtime_error("Backend not initialized: " + std::to_string(type));
+        }
+        return dynamic_cast<T *>(backend);
+    }
+
     void initBackend(BackendType type);
 
     InferenceStateManager& inference_state() {
@@ -25,7 +34,6 @@ public:
     }
 
 private:
-    friend class Backend;
 
     Context();
     ~Context() = default;
