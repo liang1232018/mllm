@@ -1,6 +1,6 @@
 #ifndef MLLM_EXECUTOR_H
 #define MLLM_EXECUTOR_H
-#include "Net.hpp"
+#include "legacy/Net.hpp"
 #include <numeric>
 
 namespace mllm {

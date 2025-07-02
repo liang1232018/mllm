@@ -7,7 +7,7 @@
 #include "express/ExpressBase.hpp"
 #include <string>
 #include <unordered_map>
-#include <Graph.hpp>
+#include <legacy/Graph.hpp>
 #include <thread>
 #include <unistd.h>
 

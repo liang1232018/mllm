@@ -1,6 +1,6 @@
 #include <csignal>
 #include "Timing.hpp"
-#include "Executor.hpp"
+#include "legacy/Executor.hpp"
 
 namespace mllm {
 void Executor::setup(Net *net) {

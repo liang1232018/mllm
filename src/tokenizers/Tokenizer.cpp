@@ -3,7 +3,7 @@
 //
 #include "ParamLoader.hpp"
 #include "Tokenizer.hpp"
-#include <Net.hpp>
+#include "legacy/Net.hpp"
 /* Vocab Structure
  * ┌──────┬──────┬─────┬────────┬──────┬──────┬───────┐
  * │      │      │     │        │      │      │       │

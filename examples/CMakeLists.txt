@@ -1,5 +1,20 @@
+add_library(MLLM_CORE
+    ${DIR_SRC_CPU} 
+    ${DIR_SRC_MEM_MANAGER} 
+    ${DIR_SRC_EXP} 
+    ${DIR_SRC}
+    ${DIR_SRC_LEGACY}
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/Tiktoken/tiktoken.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
+    ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
+    ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
+)
+
 macro(func_link_libaries target)
-    target_link_libraries(${target} PUBLIC MLLM_CPU fmt::fmt-header-only)
+    target_link_libraries(${target} PUBLIC MLLM_CORE MLLM_CPU fmt::fmt-header-only)
     if (MLLM_OPENMP)
         target_compile_options(${target} PRIVATE -fopenmp)
         if (ARM)
@@ -20,17 +35,8 @@ endmacro()
 macro(func_llm_add_executable target)
     add_executable(${target}
         ${PROJECT_SOURCE_DIR}/examples/${target}.cpp 
-        ${DIR_SRC_CPU} 
-        ${DIR_SRC_MEM_MANAGER} 
-        ${DIR_SRC_EXP} 
-        ${DIR_SRC}
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
+
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tiktoken/tiktoken.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
-        ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
     )
     func_link_libaries(${target})
 endmacro()
@@ -38,17 +44,8 @@ endmacro()
 macro(func_vlm_add_executable target)
     add_executable(${target} 
         ${PROJECT_SOURCE_DIR}/examples/${target}.cpp 
-        ${DIR_SRC_CPU} 
-        ${DIR_SRC_MEM_MANAGER} 
-        ${DIR_SRC_EXP} 
-        ${DIR_SRC}
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
+
         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unigram/Unigram.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/Unicode.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/UnicodeData.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
-        ${PROJECT_SOURCE_DIR}/src/tokenizers/WordPiece/WordPiece.cpp
-        ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
         ${DIR_SRC_PROCESSOE}
         ${DIR_THIRDPARTY_AUDIO}
     )
@@ -120,46 +117,3 @@ if(MLLM_BUILD_XNNPACK_BACKEND)
     func_llm_add_executable(demo_qwen_xp)
 endif()
 
-
-# old main
-# macro(func_o_vlm_add_executable target)
-#     add_executable(${target} 
-#         ${PROJECT_SOURCE_DIR}/examples/${target}.cpp 
-#         ${DIR_SRC_CPU} 
-#         ${DIR_SRC_MEM_MANAGER} 
-#         ${DIR_SRC_EXP} 
-#         ${DIR_SRC}
-#         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
-#         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unigram/Unigram.cpp
-#         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
-#         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
-#         ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.cpp
-#         ${PROJECT_SOURCE_DIR}/src/processor/FuyuPreProcess.cpp
-#     )
-#     func_link_libaries(${target})
-# endmacro()
-# macro(func_o_avlm_add_executable target)
-#     add_executable(${target} 
-#         ${PROJECT_SOURCE_DIR}/examples/${target}.cpp 
-#         ${DIR_SRC_CPU} 
-#         ${DIR_SRC_MEM_MANAGER} 
-#         ${DIR_SRC_EXP} 
-#         ${DIR_SRC}
-#         ${PROJECT_SOURCE_DIR}/src/tokenizers/Tokenizer.cpp
-#         ${PROJECT_SOURCE_DIR}/src/tokenizers/Unigram/Unigram.cpp
-#         ${PROJECT_SOURCE_DIR}/src/tokenizers/BPE/Bpe.cpp
-#         ${PROJECT_SOURCE_DIR}/src/processor/PreProcess.cpp
-#         ${PROJECT_SOURCE_DIR}/src/processor/ClipPreProcess.cpp
-#         ${DIR_SRC_PROCESSOE}
-#         ${DIR_THIRDPARTY_AUDIO}
-#     )
-#     func_link_libaries(${target})
-# endmacro()
-# func_llm_add_executable(main_llama)
-# func_llm_add_executable(main_alpaca)
-# func_llm_add_executable(main_tinyllama)
-# func_o_vlm_add_executable(main_llava)
-# func_o_vlm_add_executable(main_fuyu)
-# func_o_vlm_add_executable(main_vit)
-# func_o_vlm_add_executable(main_clip)
-# func_o_avlm_add_executable(main_imagebind)

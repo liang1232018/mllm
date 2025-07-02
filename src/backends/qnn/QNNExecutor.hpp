@@ -1,7 +1,7 @@
 #ifndef MLLM_QNNEXECUTOR_H
 #define MLLM_QNNEXECUTOR_H
-#include "Net.hpp"
-#include "Executor.hpp"
+#include "legacy/Net.hpp"
+#include "legacy/Executor.hpp"
 #include "Types.hpp"
 #include "express/ExpressBase.hpp"
 #include <condition_variable>

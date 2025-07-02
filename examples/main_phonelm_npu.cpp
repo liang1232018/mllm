@@ -3,12 +3,12 @@
 #include <csignal>
 #include <memory>
 #include <vector>
-#include "Executor.hpp"
+#include "legacy/Executor.hpp"
 #include "Context.hpp"
 #include "Types.hpp"
 #include "backends/qnn/QNNNet.hpp"
 #include "cmdline.h"
-#include "Net.hpp"
+#include "legacy/Net.hpp"
 #include "backends/qnn/QNNExecutor.hpp"
 
 #include "models/smollm/tokenization_smollm.hpp"

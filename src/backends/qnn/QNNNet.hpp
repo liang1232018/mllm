@@ -2,7 +2,7 @@
 #define MLLM_QNNNET_H
 
 #include "Types.hpp"
-#include "Net.hpp"
+#include "legacy/Net.hpp"
 #include "express/ExpressBase.hpp"
 
 namespace mllm {

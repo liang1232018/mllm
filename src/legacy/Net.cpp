@@ -1,4 +1,4 @@
-#include "Net.hpp"
+#include "legacy/Net.hpp"
 #include "Op.hpp"
 #include "Types.hpp"
 #include "Backend.hpp"

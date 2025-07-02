@@ -4,13 +4,12 @@
 
 #ifndef HELPER_HPP
 #define HELPER_HPP
-#include <Net.hpp>
 #include <iostream>
 #include <Types.hpp>
 #include <utility>
 #include <valarray>
-#include "Net.hpp"
-#include "Executor.hpp"
+#include "legacy/Net.hpp"
+#include "legacy/Executor.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Tokenizer.hpp"

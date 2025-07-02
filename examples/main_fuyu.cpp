@@ -3,8 +3,8 @@
 #include <valarray>
 #include <csignal>
 #include "cmdline.h"
-#include "Net.hpp"
-#include "Executor.hpp"
+#include "legacy/Net.hpp"
+#include "legacy/Executor.hpp"
 #include "express/Express.hpp"
 #include "tokenizers/BPE/Bpe.hpp"
 #include "tokenizers/Unigram/Unigram.hpp"

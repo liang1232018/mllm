@@ -2,8 +2,8 @@
 #include <iostream>
 #include <valarray>
 #include <csignal>
-#include "Net.hpp"
-#include "Executor.hpp"
+#include "legacy/Net.hpp"
+#include "legacy/Executor.hpp"
 #include "express/Express.hpp"
 #include "cmdline.h"
 #ifndef  STB_IMAGE_IMPLEMENTATION
