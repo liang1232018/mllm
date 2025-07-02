@@ -169,6 +169,8 @@ class QwenQKVmm final : public Module {
     int num_key_value_heads;
     int num_key_value_groups;
 
+    bool isScale = false;
+
 public:
     QwenQKVmm() = default;
     QwenQKVmm(const QWenNPUConfig &config, const QWenNameConfig &names, int chunk_size, const string &base_name) {
@@ -185,6 +187,9 @@ public:
         softmax = Softmax(DIMENSION, true, base_name + "softmax");
 
         o_quantize = Quantize(true, base_name + names._o_proj_name + ".quantize");
+
+        if (!config.use_i32_bias)
+            isScale = true;
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -280,8 +285,8 @@ public:
         post_gate_proj_dequantize = Dequantize(true, mlp_base_name + names._gate_proj_name + ".dequantize", false);
 
         down_proj = Linear(intermediate_size, hidden_size, false, mlp_base_name + names._down_proj_name);
-        pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize");
-        post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize");
+        pre_down_proj_quantize = Quantize(true, mlp_base_name + names._down_proj_name + ".quantize", MLLM_TYPE_I16);
+        post_down_proj_dequantize = Dequantize(true, mlp_base_name + names._down_proj_name + ".dequantize", true, MLLM_TYPE_I16);
         post_mlp_view = View(1, 1, chunk_size, hidden_size, mlp_base_name + names._down_proj_name + ".dequantize-00_view_");
 
         mlp_mul = Mul(mlp_base_name + "mul");
