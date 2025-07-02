@@ -252,11 +252,11 @@ public:
 
         _SubgraphStart({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos});
 
-        for (int i = 0; i < 1 && i < 1; i++) {
-            auto outputs = blocks[i]({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos});
-            _SubgraphEnd(outputs);
-            hidden_states = outputs[0];
+        for (int i = 0; i < blocks.size(); i++) {
+            hidden_states = blocks[i]({hidden_states, rotary_pos_emb_sin, rotary_pos_emb_cos})[0];
         }
+
+        _SubgraphEnd({hidden_states});
 
         hidden_states.saveData<float>("hidden-after-1-qnn");
 
