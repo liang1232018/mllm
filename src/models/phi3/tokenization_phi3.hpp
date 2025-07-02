@@ -15,7 +15,7 @@ class Phi3Tokenizer final : public BPETokenizer {
 public:
     explicit Phi3Tokenizer(const std::string &vocab_file) :
         BPETokenizer(vocab_file) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         chat_template_pre = "<|user|>\n";
         chat_template_end = "<|end|>\n<|assistant|>";
     }

@@ -25,7 +25,7 @@ class DCLMTokenizer final : public BPETokenizer {
 public:
     explicit DCLMTokenizer(const std::string &vocab_file, const std::string &merge_file) :
         BPETokenizer(vocab_file) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         std::ifstream merge(merge_file);
         std::string line;
         unsigned rank = 0;

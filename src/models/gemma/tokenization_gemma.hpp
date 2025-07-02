@@ -24,7 +24,7 @@ class GemmaTokenizer final : public BPETokenizer {
 public:
     explicit GemmaTokenizer(const std::string &vocab_file) :
         BPETokenizer(vocab_file) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
     }
 
     Tensor tokenize(const std::string &text, string name = "input", BackendType type = MLLM_CPU) override {

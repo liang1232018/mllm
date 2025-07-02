@@ -1,6 +1,7 @@
 
 
 #include "CPUKVCacheNPU.hpp"
+#include "Context.hpp"
 #include "ParamLoader.hpp"
 #include "Types.hpp"
 
@@ -10,7 +11,6 @@ CPUKVCacheNPU::CPUKVCacheNPU(Backend *bn, string opName, int n_rep, int cache_ma
     Op(bn, opName) {
     cache_.setBackend(bn);
 
-    // TODO: Chaning it to FP16
     cache_.setDtype(MLLM_TYPE_F16);
     cache_limit_ = cache_max;
     n_rep_ = n_rep;
@@ -33,14 +33,15 @@ ErrorCode CPUKVCacheNPU::reshape(vector<shared_ptr<Tensor>> inputs, vector<share
 
 #ifdef USE_QNN
     // when the execution is switched from pref to dec, the sequence length should be set to the no padding length
-    auto cpuBackend = dynamic_cast<CPUBackend *>(backend_);
-    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == AUTOREGRESSIVE) {
-        cache_seq_len_ = cpuBackend->getCurSequenceLength();
+    if (Context::Instance().inference_state().isStageSwitching()
+        && Context::Instance().inference_state().getExecutionType() == AUTOREGRESSIVE) {
+        cache_seq_len_ = Context::Instance().inference_state().getCurSequenceLength();
         isDecoding = true;
     }
     // if a new prompt is given, the cache should be updated
-    if (cpuBackend->isStageSwitching() && cpuBackend->getExecutionType() == PROMPT) {
-        cache_seq_len_ = cpuBackend->getCurSequenceLength();
+    if (Context::Instance().inference_state().isStageSwitching()
+        && Context::Instance().inference_state().getExecutionType() == PROMPT) {
+        cache_seq_len_ = Context::Instance().inference_state().getCurSequenceLength();
         isDecoding = false;
     }
 #endif

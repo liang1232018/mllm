@@ -27,7 +27,7 @@ public:
     explicit QWenTokenizer(const std::string &vocab_file, const std::string &merge_file, bool split_special_tokens = false) :
         BPETokenizer(vocab_file),
         split_special_tokens_(split_special_tokens) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
 
         // init byte encoder
         std::vector<int> bs;

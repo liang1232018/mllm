@@ -33,7 +33,7 @@ public:
     void init(std::string name, OpType type) {
         name_ = std::move(name);
         param_["type"] = type;
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         backend_ = Backend::global_backends[MLLM_CPU];
         saved_list_idx = Module::listIdx;
         init_ = true;

@@ -350,9 +350,9 @@ std::vector<Tensor> CPUBackend::runFunc(
                     if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                         cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
                         auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
-                        if (cpuBackend->isUsingDraft()) {
-                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                        if (Context::Instance().speculative_decoding_state().isUsingDraft()) {
+                            unsigned int last_draft_length = Context::Instance().speculative_decoding_state().getLastDraftLength();
+                            const std::vector<unsigned int> &last_verified_position_ids = Context::Instance().speculative_decoding_state().getLastVerifiedPositionIds();
                             cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
                         }
                     }
@@ -373,9 +373,9 @@ std::vector<Tensor> CPUBackend::runFunc(
             if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                 cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
                 auto cpuBackend = dynamic_cast<CPUBackend *>(backend);
-                if (cpuBackend->isUsingDraft()) {
-                    unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-                    const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                if (Context::Instance().speculative_decoding_state().isUsingDraft()) {
+                    unsigned int last_draft_length = Context::Instance().speculative_decoding_state().getLastDraftLength();
+                    const std::vector<unsigned int> &last_verified_position_ids = Context::Instance().speculative_decoding_state().getLastVerifiedPositionIds();
                     cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
                 }
             }
@@ -518,9 +518,9 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
                     if (shared_ot->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                         cache_seq_len_ = activation_tensors[shared_ot->name()]->masterTensor()->cache_seq_len_;
                         auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
-                        if (cpuBackend->isUsingDraft()) {
-                            unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-                            const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                        if (Context::Instance().speculative_decoding_state().isUsingDraft()) {
+                            unsigned int last_draft_length = Context::Instance().speculative_decoding_state().getLastDraftLength();
+                            const std::vector<unsigned int> &last_verified_position_ids = Context::Instance().speculative_decoding_state().getLastVerifiedPositionIds();
                             cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
                         }
                     }
@@ -541,9 +541,9 @@ std::vector<Tensor> CPUBackend::runLayer(Layer *layer, std::vector<Tensor> input
             if (out_tensor->name().find("cache") == std::string::npos) { // KVcahe的输出不设置，只有输入设置
                 cache_seq_len_ = activation_tensors[out_tensor->name()]->masterTensor()->cache_seq_len_;
                 auto cpuBackend = dynamic_cast<CPUBackend *>(layer->backend_);
-                if (cpuBackend->isUsingDraft()) {
-                    unsigned int last_draft_length = cpuBackend->getLastDraftLength();
-                    const std::vector<unsigned int> &last_verified_position_ids = cpuBackend->getLastVerifiedPositionIds();
+                if (Context::Instance().speculative_decoding_state().isUsingDraft()) {
+                    unsigned int last_draft_length = Context::Instance().speculative_decoding_state().getLastDraftLength();
+                    const std::vector<unsigned int> &last_verified_position_ids = Context::Instance().speculative_decoding_state().getLastVerifiedPositionIds();
                     cache_seq_len_ = cache_seq_len_ - (last_draft_length) + last_verified_position_ids.size();
                 }
             }

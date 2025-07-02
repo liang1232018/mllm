@@ -10,8 +10,8 @@
 using namespace mllm;
 
 auto main() -> int {
-    mllm::Context::Instance().initBackend(MLLM_CPU);
-    mllm::Context::Instance().initBackend(MLLM_QNN);
+    Context::Instance().initBackend(MLLM_CPU);
+    Context::Instance().initBackend(MLLM_QNN);
 
     auto qnnBackend = static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN]);
 

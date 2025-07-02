@@ -21,7 +21,7 @@ class MistralTokenizer final : public BPETokenizer {
 public:
     explicit MistralTokenizer(const std::string &vocab_file) :
         BPETokenizer(vocab_file) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         chat_template_pre = "<s>[INST] ";
         chat_template_end = " [/INST]";
     }

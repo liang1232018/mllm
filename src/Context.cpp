@@ -4,7 +4,7 @@
 #include "memory/MemoryPoolManager.hpp"
 
 namespace mllm {
-Context &mllm::Context::Instance() {
+Context &Context::Instance() {
     static Context instance;
     return instance;
 }

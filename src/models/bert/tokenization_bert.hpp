@@ -15,7 +15,7 @@ class BertTokenizer final : public WordPieceTokenizer {
 public:
     explicit BertTokenizer(const std::string &vocab_file, bool add_special_tokens = true) :
         WordPieceTokenizer(vocab_file) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         _add_special_tokens = add_special_tokens;
         this->add_special_tokens({"[PAD]", "[CLS]", "[SEP]", "[MASK]"});
     }

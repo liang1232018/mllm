@@ -305,7 +305,7 @@ public:
     explicit Qwen2VLProcessor(const string &vocab_path, const string &merge_path = "",
                               int min_pixels = 4 * 28 * 28, int max_pixels = 16384 * 28 * 28) :
         PreProcessor(224, 224, true, true, true, true, {0.5}, {0.5}) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         tokenizer = new QWenTokenizer(vocab_path, merge_path);
         tokenizer->special_tokens = {
             "<|endoftext|>",

@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 #include "Executor.hpp"
+#include "Context.hpp"
 #include "Types.hpp"
 #include "backends/qnn/QNNNet.hpp"
 #include "cmdline.h"
@@ -182,18 +183,9 @@ int main(int argc, char **argv) {
             auto out_token = tokenizer.detokenize({token_idx});
             std::cout << out_token << std::flush;
 
-            auto prefill_cpu_backend = dynamic_cast<CPUBackend *>(npuNet.backends()[MLLM_CPU].get());
-            auto inter_cpu_backend = dynamic_cast<CPUBackend *>(interNet.backends()[MLLM_CPU].get());
-            auto decode_cpu_backend = dynamic_cast<CPUBackend *>(cpuNet.backends()[MLLM_CPU].get());
-            prefill_cpu_backend->setCurSequenceLength(real_seq_length);
-            prefill_cpu_backend->setExecutionType(AUTOREGRESSIVE);
-            prefill_cpu_backend->toggleSwitching();
-            inter_cpu_backend->setCurSequenceLength(real_seq_length);
-            inter_cpu_backend->setExecutionType(AUTOREGRESSIVE);
-            inter_cpu_backend->toggleSwitching();
-            decode_cpu_backend->setCurSequenceLength(real_seq_length);
-            decode_cpu_backend->setExecutionType(AUTOREGRESSIVE);
-            decode_cpu_backend->toggleSwitching();
+            mllm::Context::Instance().inference_state().setTotalSequenceLength(real_seq_length);
+            mllm::Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
+            mllm::Context::Instance().inference_state().toggleSwitching();
 
             // // 2: Decoding stage using CPU execute
             for (int step = real_seq_length; step < real_seq_length + 100; step++) {
@@ -209,9 +201,7 @@ int main(int argc, char **argv) {
                 std::cout << out_token << std::flush;
 
                 if (step == real_seq_length) {
-                    prefill_cpu_backend->toggleSwitching();
-                    inter_cpu_backend->toggleSwitching();
-                    decode_cpu_backend->toggleSwitching();
+                    mllm::Context::Instance().inference_state().toggleSwitching();
                 }
             }
         } while (false);

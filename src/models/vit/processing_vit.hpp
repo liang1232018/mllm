@@ -49,7 +49,7 @@ public:
     explicit ViTProcessor() :
         PreProcessor(224, 224, false, true, true,
                      true, {0.5}, {0.5}) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
     }
 
     Tensor process(string img_path, int hw = 224, string name = "input", BackendType type = MLLM_CPU) {

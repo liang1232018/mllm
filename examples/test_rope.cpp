@@ -11,8 +11,8 @@
 using namespace mllm;
 
 auto main() -> int {
-    mllm::Context::Instance().initBackend(MLLM_CPU);
-    mllm::Context::Instance().initBackend(MLLM_QNN);
+    Context::Instance().initBackend(MLLM_CPU);
+    Context::Instance().initBackend(MLLM_QNN);
 
     auto cpuBackend = static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU]);
 
@@ -58,8 +58,8 @@ auto main() -> int {
     image_output->alloc();
 
     auto apply_rope = cpuBackend->funcCreate(mllm::FUNC_APPLY_VISIOROPE);
-    apply_rope->setup({image_output.get()}, {image_input.get(), pos_id.get()}, {});
-    apply_rope->execute({image_output.get()}, {image_input.get(),  pos_id.get()}, {});
+    apply_rope->setUp({image_output}, {image_input, pos_id}, {});
+    apply_rope->execute({image_output}, {image_input,  pos_id}, {});
     image_output->printData<float>();
 
     auto qnnBackend = static_cast<QNNBackend *>(Backend::global_backends[MLLM_QNN]);

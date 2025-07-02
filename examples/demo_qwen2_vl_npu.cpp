@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
     // TODO: add a function to calculate the chunk size
     const int chunk_size = 128;
 
-    mllm::Context::Instance().initBackend(MLLM_QNN);
+    Context::Instance().initBackend(MLLM_QNN);
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
@@ -89,14 +89,14 @@ int main(int argc, char **argv) {
     std::cout << "after warm up" << std::endl;
 
     Module::isFirstChunk = false;
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+    Context::Instance().inference_state().setCurSequenceLength(0);
+    Context::Instance().inference_state().setExecutionType(PROMPT);
+    Context::Instance().inference_state().toggleSwitching();
 
     // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
+    Context::Instance().inference_state().setTotalSequenceLength(real_seq_length);
     // set chunk size for the HeadLinear execute, which can not get the chunk size from Opts
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setChunkSize(chunk_size);
+    Context::Instance().inference_state().setChunkSize(chunk_size);
 
     std::cout << "[Q] " << in_strs[0] << std::endl;
     std::cout << "[A] " << std::flush;
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
         auto result = prefill_body(prefill_input);
 
         if (i == 0) { // turn off switching to avoid RoPE h_cnt_ reset to curSequenceLength in next chunk
-            static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+            Context::Instance().inference_state().toggleSwitching();
         }
 
         if (i == num_iter - 1) {
@@ -159,9 +159,9 @@ int main(int argc, char **argv) {
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
-    static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+    Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
+    Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
+    Context::Instance().inference_state().toggleSwitching();
 
     // 3. CPU LLM Decoding
     for (auto &t : input_tensors) { // set to INPUT_TENSOR to let decoding module update act
@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
         std::cout << output_string << std::flush;
         chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
-        if (step == 0) static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        if (step == 0) Context::Instance().inference_state().toggleSwitching();
     }
 
     std::cout << std::endl;

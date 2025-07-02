@@ -91,7 +91,7 @@ class ImagebindProcessor final : public ClipProcessor {
 public:
     explicit ImagebindProcessor(const string &vocab_path, const string &merges_path) :
         ClipProcessor(vocab_path, merges_path) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
     }
 
     struct imagebind_out {

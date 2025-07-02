@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     QWenNPUConfig config(tokens_limit, model_billion, RoPEType::HFHUBROPE);
     auto model = v2::QWenForCausalLM_NPU(config, 32);
 
-    mllm::Context::Instance().initBackend(MLLM_QNN);
+    Context::Instance().initBackend(MLLM_QNN);
 
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
         std::cout << "[A] " << std::flush;
 
         // set total seq length for HeadLinear execute, which can not get the real seq length from Opts
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setTotalSequenceLength(real_seq_length);
+        Context::Instance().inference_state().setTotalSequenceLength(real_seq_length);
 
         LlmTextGeneratorOpts opt{
             .max_new_tokens = 1,
@@ -66,9 +66,9 @@ int main(int argc, char **argv) {
             return true;
         });
 
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(real_seq_length);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(AUTOREGRESSIVE);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
+        Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
+        Context::Instance().inference_state().toggleSwitching();
 
         LlmTextGeneratorOpts decoding_opt{
             .max_new_tokens = 50,
@@ -82,7 +82,7 @@ int main(int argc, char **argv) {
         decoding_model.generate(input_tensor, decoding_opt, [&](unsigned int out_token) -> bool {
             // call only once of switchDecodeTag
             if (!isSwitched) {
-                static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+                Context::Instance().inference_state().toggleSwitching();
 
                 isSwitched = true;
             }
@@ -97,9 +97,9 @@ int main(int argc, char **argv) {
         });
 
         // turn on switching, set sequence length and execution type
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setCurSequenceLength(0);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->setExecutionType(PROMPT);
-        static_cast<CPUBackend *>(Backend::global_backends[MLLM_CPU])->toggleSwitching();
+        Context::Instance().inference_state().setCurSequenceLength(0);
+        Context::Instance().inference_state().setExecutionType(PROMPT);
+        Context::Instance().inference_state().toggleSwitching();
         std::cout << "\n";
 
         if (!std::filesystem::exists("qnn_context.bin")) {

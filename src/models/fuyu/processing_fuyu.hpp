@@ -225,7 +225,7 @@ class FuyuProcessor final : public PreProcessor {
 public:
     explicit FuyuProcessor(const std::string &vocab_file, int image_height = 1080, int image_width = 1920) :
         PreProcessor(image_height, image_width, true, true, true, true, {0.5}, {0.5}) {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         tokenizer_ = new UnigramTokenizer(vocab_file);
         auto tmp_token = vector<token_id_t>();
         tokenizer_->tokenize("|SPEAKER|", tmp_token, false);

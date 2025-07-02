@@ -372,7 +372,7 @@ public:
     Phi3VImageProcessor image_processor;
     Phi3Tokenizer *tokenizer;
     explicit Phi3VProcessor(const string &vocab_path, const string &merges_path = "") {
-        mllm::Context::Instance().initBackend(MLLM_CPU);
+        Context::Instance().initBackend(MLLM_CPU);
         tokenizer = new Phi3Tokenizer(vocab_path);
         if (!merges_path.empty()) {
             std::unordered_map<string, unsigned> merge_rank;
