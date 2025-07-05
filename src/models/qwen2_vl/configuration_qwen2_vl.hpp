@@ -66,8 +66,6 @@ public:
           QWenNPUConfig(token_limit, billions, type)
     {
 
-        use_high_precision_silu = false;
-        shadow_layers = {};
         std::cout << "use i32 bias: " << use_i32_bias << std::endl;
         std::cout << "use high silu: " << use_high_precision_silu << std::endl;
         std::cout << "shadow layers: ";
