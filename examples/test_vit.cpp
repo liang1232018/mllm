@@ -27,13 +27,13 @@ int main(int argc, char **argv) {
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
 
     // TODO: add a function to calculate the chunk size
-    const int chunk_size = 256;
+    const int chunk_size = 128;
 
     Context::Instance().initBackend(MLLM_QNN);
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
-    Qwen2VLNPUConfig config(tokens_limit, "1.5b-rotated");
+    Qwen2VLNPUConfig config(tokens_limit, "1.5b-vl-rotated");
 
     auto prefill_embedding = test::Qwen2VL_ImagePatchAndEmbedding(config);
     prefill_embedding.load(model_path);
@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     vector<string> in_imgs = {
         "../assets/bus.png"};
     vector<string> in_strs = {
-        "Describe this image.",
+        "<|vision_start|><|image_pad|><|vision_end|>Imagine you are describing this image to someone who cannot see it. Explain everything you observe, including the background, subjects, their expressions, and any activities they appear to be doing.",
     };
 
     auto &in_str = in_strs[0];
@@ -53,9 +53,9 @@ int main(int argc, char **argv) {
 
     PRINT_MEMORY_USAGE("after qnn prefill embedding");
 
-    Qwen2VLNPUConfig llm_config(tokens_limit, "1.5b-vl");
+    Qwen2VLNPUConfig llm_config(tokens_limit, "1.5b-vl-rotated");
     auto prefill_body = Qwen2VL_PrefillBody(llm_config, chunk_size, llm_config.shadow_layers);
-    prefill_body.load("../models/qwen2-vl-w8-i8bias-128.mllm");
+    prefill_body.load("../models/Qwen2-VL-2B-Instruct_vit_lm_rotated-Q40.mllm");
 
     auto merged_embd_warmup_tensor = Tensor(Context::Instance().globalBackends(MLLM_QNN));
     merged_embd_warmup_tensor.reshape(1, 1, chunk_size, 1536);
