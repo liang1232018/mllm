@@ -1551,7 +1551,7 @@ public:
                 for (int h = 0; h < sequence(); ++h) {
                     for (int c = 0; c < head(); ++c) {
                         for (int w = 0; w < dimension(); ++w) {
-                            outFile << (int)dataAt<Dtype>(n, c, h, w) << " ";
+                            outFile << dataAt<Dtype>(n, c, h, w) << " ";
                         }
                         outFile << std::endl;
                     }
