@@ -3,6 +3,7 @@
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include "Context.hpp"
 #include <cassert>
 #include <cmath>
 
@@ -12,7 +13,7 @@ QNNQuantize::QNNQuantize(Backend *bn, string opName, DataType type, bool isNSHD)
     isNSHD_ = isNSHD;
     assert(type == MLLM_TYPE_I8 || type == MLLM_TYPE_I16);
     activation_dtype_ = type;
-    scale_.setBackend(bn);
+    scale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNQuantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

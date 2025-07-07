@@ -2,11 +2,12 @@
 #include "QNNGELU.hpp"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include "Context.hpp"
 
 namespace mllm {
 QNNGELU::QNNGELU(Backend *bn, string opName) :
     QNNCommonOp(bn, opName) {
-        scale_.setBackend(bn);
+    scale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

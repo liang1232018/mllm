@@ -3,6 +3,7 @@
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
+#include "Context.hpp"
 #include <cassert>
 
 namespace mllm {
@@ -12,8 +13,8 @@ QNNDequantizeAdd::QNNDequantizeAdd(Backend *bn, string opName, bool isNSHD, int 
     isFP32_ = isFP32;
     out_features_ = out_features;
     activation_dtype_ = type;
-    scale_.setBackend(bn);
-    bias_.setBackend(bn);
+    scale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
+    bias_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNDequantizeAdd::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

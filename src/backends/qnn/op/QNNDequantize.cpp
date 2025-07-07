@@ -4,6 +4,7 @@
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
 #include <cassert>
+#include "Context.hpp"
 
 namespace mllm {
 QNNDequantize::QNNDequantize(Backend *bn, string opName, bool isNSHD, bool isFP32, DataType type) :
@@ -11,7 +12,7 @@ QNNDequantize::QNNDequantize(Backend *bn, string opName, bool isNSHD, bool isFP3
     isNSHD_ = isNSHD;
     isFP32_ = isFP32;
     activation_dtype_ = type;
-    scale_.setBackend(bn);
+    scale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNDequantize::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {

@@ -3,13 +3,13 @@
 #include "QnnTypes.h"
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
-#include <arm_neon.h>
+#include "Context.hpp"
 #include <cstdint>
 
 namespace mllm {
 QNNQuickGELU::QNNQuickGELU(Backend *bn, string opName) :
     QNNCommonOp(bn, opName) {
-        scale_.setBackend(bn);
+    scale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNQuickGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -30,7 +30,7 @@ ErrorCode QNNQuickGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
     
     uint32_t scalarDimensions[1] = {1};
     float scaleData[] = {1.702f};
-    float16_t scaleDataF16[] = {static_cast<float16_t>(1.702f)};
+    mllm_fp16_t scaleDataF16[] = {static_cast<mllm_fp16_t>(1.702f)};
     auto scaleName = name() + ".gelu_scale";
     auto qnnDtype = QNN_DATATYPE_FLOAT_32;
 

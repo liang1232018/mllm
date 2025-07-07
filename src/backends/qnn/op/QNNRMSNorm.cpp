@@ -3,11 +3,12 @@
 #include "Types.hpp"
 #include "QNNCommonOp.hpp"
 #include <cstdint>
+#include "Context.hpp"
 
 namespace mllm {
 QNNRMSNorm::QNNRMSNorm(Backend *bn, string opName, int normSize, float epsilon, bool isFP32) :
     QNNCommonOp(bn, opName), normSize_(normSize), epsilon_(epsilon), isFP32_(isFP32) {
-    weight_.setBackend(bn);
+    weight_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNRMSNorm::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
