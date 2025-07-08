@@ -6,8 +6,6 @@
 namespace mllm {
 QNNMul::QNNMul(Backend *bn, string opName) :
     QNNCommonOp(bn, opName) {
-
-    scale_.setBackend(bn);
 }
 
 ErrorCode QNNMul::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -73,22 +71,6 @@ ErrorCode QNNMul::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Ten
 }
 
 ErrorCode QNNMul::load(AbstructLoader &loader) {
-    string scaleName = name();
-
-    std::string wordToRemove = "gate_proj.relu-00_mul_";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-    }
-
-    scale_.setName(scaleName + "down_proj.input_scale");
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
-
-    // std::cout <<  scale_.hostPtr<float>()[0] << std::endl;
-
     return Op::load(loader);
 }
 
