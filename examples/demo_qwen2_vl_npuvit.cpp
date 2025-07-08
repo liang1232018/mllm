@@ -6,7 +6,7 @@
 #include "cmdline.h"
 #include "memory/MemInspect.hpp"
 #include "models/qwen2_vl/configuration_qwen2_vl.hpp"
-#include "models/qwen2_vl/modeling_npu_vit.hpp"
+#include "models/qwen2_vl/modeling_qwen2_vl_npuvit.hpp"
 #include "models/qwen2_vl/modeling_qwen2_vl_npu.hpp"
 #include "models/qwen2_vl/processing_qwen2_vl.hpp"
 #include "processor/PostProcess.hpp"
@@ -24,6 +24,7 @@ int main(int argc, char **argv) {
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
     string model_path = cmdParser.get<string>("model");
+    const string cpu_model_path = "../models/Qwen2-VL-2B-Instruct_vit_lm_rotated-Q40.mllm";
     int tokens_limit = cmdParser.get<int>("limits");
     int thread_num = cmdParser.get<int>("thread");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
@@ -35,10 +36,20 @@ int main(int argc, char **argv) {
 
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
-    Qwen2VLNPUConfig config(tokens_limit, "1.5b-vl-rotated");
+    Qwen2VLNPUConfig npu_config(tokens_limit, "1.5b-vl-rotated");
 
-    auto prefill_embedding = test::Qwen2VL_ImagePatchAndEmbedding(config);
+    // npu vit embedding
+    auto prefill_embedding = npu::Qwen2VL_ImagePatchAndEmbedding(npu_config);
     prefill_embedding.load(model_path);
+
+    // npu llm
+    auto prefill_body = Qwen2VL_PrefillBody(npu_config, chunk_size, npu_config.shadow_layers);
+    prefill_body.load(model_path);
+
+    // cpu model
+    auto cpu_model_config = Qwen2VLConfig(tokens_limit, "1.5b");
+    auto decoding_model = Qwen2VL_Decoding_Model(cpu_model_config);
+    decoding_model.load(cpu_model_path);
 
     vector<string> in_imgs = {
         "../assets/bus.png"};
@@ -55,17 +66,16 @@ int main(int argc, char **argv) {
 
     const int num_iter = (real_seq_length + chunk_size - 1) / chunk_size;
     std::cout << "num_iter: " << num_iter << std::endl;
+    // padding the position_ids to total chunk length(example: 256*2) for CPUMultimodalRoPEPipeline
+    prefill_embedding.get_position_ids(input_tensors, chunk_size * num_iter);
 
-
+    // 1. QNN vit embedding
+    // NOTE: put vit here is because compatible with older qnn_context.bin. 
+    // In QNNBackend, the graph should be executed in the order of the context
+    // TODO: better QNNBackend graph indexing and management
+    auto vit_start = mllm_time_ms();
     auto merged_embd = prefill_embedding(input_tensors);
-
-    prefill_embedding.get_position_ids(input_tensors, chunk_size);
-
-    PRINT_MEMORY_USAGE("after qnn prefill embedding");
-
-    Qwen2VLNPUConfig llm_config(tokens_limit, "1.5b-vl-rotated");
-    auto prefill_body = Qwen2VL_PrefillBody(llm_config, chunk_size, llm_config.shadow_layers);
-    prefill_body.load("../models/Qwen2-VL-2B-Instruct_vit_lm_rotated-Q40.mllm");
+    auto vit_end = mllm_time_ms();
 
     auto merged_embd_warmup_tensor = Tensor(Context::Instance().globalBackends(MLLM_QNN));
     merged_embd_warmup_tensor.reshape(1, 1, chunk_size, 1536);
@@ -75,8 +85,14 @@ int main(int argc, char **argv) {
     merged_embd_warmup_tensor.setTtype(INPUT_TENSOR);
     input_tensors.back().setTtype(INPUT_TENSOR);
     vector<Tensor> prefill_input = {merged_embd_warmup_tensor, input_tensors.back()};
+    auto llm_start = mllm_time_ms();
     prefill_body(prefill_input);
+    auto llm_end = mllm_time_ms();
     std::cout << "after warm up" << std::endl;
+
+    if (!std::filesystem::exists("qnn_context.bin")) {
+        Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
+    }
 
     Module::isFirstChunk = false;
     Context::Instance().inference_state().setCurSequenceLength(0);
@@ -94,7 +110,6 @@ int main(int argc, char **argv) {
     for (auto &t : input_tensors) {
         t.setTtype(INPUT_TENSOR);
     }
-    
 
     // 2. QNN LLM Prefill
     unsigned int out_token = 0;
@@ -125,22 +140,39 @@ int main(int argc, char **argv) {
             out_token = outputs.second;
             auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
             std::cout << output_string << std::flush;
-            std::cout << "..." << std::flush;
         }
     }
 
     chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
 
+    Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
+    Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
+    Context::Instance().inference_state().toggleSwitching();
 
-    std::cout << "--------AFTER QNN--------" << std::endl;
-
-    // auto cpu_prefill_embedding = Qwen2VL_ImagePatchAndEmbedding(config);
-    // cpu_prefill_embedding.load("../models/showui-2B-rotated.mllm");
-    // merged_embd = cpu_prefill_embedding(input_tensors);
-
-    if (!std::filesystem::exists("qnn_context.bin")) {
-        Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
+    // 3. CPU LLM Decoding
+    for (auto &t : input_tensors) { // set to INPUT_TENSOR to let decoding module update act
+        t.setTtype(INPUT_TENSOR);
     }
 
+    const int last_position_id = input_tensors[3].dataAt<float>(0, 0, 0, real_seq_length - 1);
+    for (int step = 0; step < 100; step++) {
+        // use the last position id(no padding position) in decoding
+        prefill_embedding.get_position_ids(input_tensors, 0, last_position_id + 1 + step);
+
+        auto result = decoding_model(input_tensors);
+        auto outputs = processor.detokenize(result[0]);
+        auto out_string = outputs.first;
+        auto out_token = outputs.second;
+        auto [not_end, output_string] = processor.tokenizer->postprocess(out_string);
+        if (!not_end) { break; }
+        std::cout << output_string << std::flush;
+        chatPostProcessing(out_token, input_tensors[0], {&input_tensors[1], &input_tensors[2]});
+
+        if (step == 0) Context::Instance().inference_state().toggleSwitching();
+    }
+
+    std::cout << std::endl;
+    std::cout << "vit embedding time: " << vit_end - vit_start << " ms" << std::endl;
+    std::cout << "Prefill:" << prefill_time << " ms" << std::endl;
     return 0;
 }

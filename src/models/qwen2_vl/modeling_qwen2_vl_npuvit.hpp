@@ -7,17 +7,11 @@
 #include "Timing.hpp"
 #include "Types.hpp"
 #include "configuration_qwen2_vl.hpp"
-#include "models/qwen2_vl/modeling_qwen2_vl.hpp"
-#include <cassert>
-#include <cstdint>
 #include <string>
 #include <vector>
 
 using namespace mllm;
-namespace test {
-
-// current version of showui/qwen2-vl don't need shadow layers
-std::set qwenvlShadowLayers = {100};
+namespace npu {
 
 class VisionBlock_NPU final : public Module {
     Layer input_quantize;
@@ -66,7 +60,8 @@ public:
         auto attn_base_name = base_name + names._attn_base_name;
         input_quantize = Quantize(true, attn_base_name + names._qkv_proj_name + ".quantize", MLLM_TYPE_I16);
         qkv_proj = Linear(hidden_dim, head_size * attn_hidden_dim_ * 3, false, attn_base_name + names._qkv_proj_name);
-        qkv_dequant = DequantizeAdd(true, head_size * attn_hidden_dim_ * 3, attn_base_name + names._qkv_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+        // use FP16 for attention matmul
+        qkv_dequant = DequantizeAdd(true, head_size * attn_hidden_dim_ * 3, attn_base_name + names._qkv_proj_name + ".dequantize", false, MLLM_TYPE_I16);
 
         qkv_split = Split(3, DIMENSION, head_size * attn_hidden_dim_, attn_base_name + names._qkv_proj_name + ".split");
 
@@ -91,11 +86,14 @@ public:
 
         post_atten_res_add = Add(attn_base_name + "post_atten_add");
 
+        norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name, true);
+
         // mlp
         auto mlp_base_name = base_name + names._ffn_base_name;
         pre_mlp_quantize = Quantize(true, mlp_base_name + names._up_proj_name + ".quantize", MLLM_TYPE_I16);
         up_proj = Linear(hidden_dim, ffn_hidden, false, mlp_base_name + names._up_proj_name);
-        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize", true, MLLM_TYPE_I16);
+        // NOTE: QNN GeLU doesn't support FP32, use FP16
+        post_up_proj_dequantize = DequantizeAdd(true, ffn_hidden, mlp_base_name + names._up_proj_name + ".dequantize", false, MLLM_TYPE_I16);
 
         act = ACT_FN[act_fn_type](mlp_base_name + "act");
 
@@ -104,8 +102,6 @@ public:
         post_down_proj_dequantize = DequantizeAdd(true, hidden_dim, mlp_base_name + names._down_proj_name + ".dequantize", true, MLLM_TYPE_I16);
 
         post_mlp_res_add = Add(mlp_base_name + "res_add");
-
-        norm2 = RMSNorm(hidden_dim, 1e-6, base_name + names._ffn_norm_name, true);
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto after_norm1 = norm1(inputs[0]);
@@ -190,10 +186,11 @@ class RotationPatchMerger final : public Module {
     Layer mlp0;
     Layer gelu;
     Layer mlp2;
+
 public:
     RotationPatchMerger() = default;
     RotationPatchMerger(int dim, int context_dim, int spatial_merge_size, const Qwen2VLNameConfig &names, const string &base_name) {
-        hidden_size = context_dim * (spatial_merge_size*spatial_merge_size);
+        hidden_size = context_dim * (spatial_merge_size * spatial_merge_size);
         ln_q = RMSNorm(context_dim, 1e-6, base_name + names._ln_q_name, true);
         mlp0 = Linear(hidden_size, hidden_size, true, base_name + names._m_mlp_0_name);
         gelu = GELU(base_name + ".gelu");
@@ -206,7 +203,6 @@ public:
     }
 };
 
-
 class Qwen2VisionModel_NPU : public Module {
     Qwen2PatchEmbedForNPU patch_embed;
 
@@ -217,12 +213,6 @@ class Qwen2VisionModel_NPU : public Module {
 
     SubgraphStart _SubgraphStart;
     SubgraphFinalize _SubgraphEnd;
-    SubgraphStart _SubgraphStart1;
-    SubgraphFinalize _SubgraphEnd1;
-    SubgraphStart _SubgraphStart2;
-    SubgraphFinalize _SubgraphEnd2;
-    SubgraphStart _SubgraphStart3;
-    SubgraphFinalize _SubgraphEnd3;
 
 public:
     Qwen2VisionModel_NPU() = default;
@@ -237,12 +227,6 @@ public:
 
         _SubgraphStart = SubgraphStart(base_name + "subgraph_start");
         _SubgraphEnd = SubgraphFinalize(base_name + "subgraph_end");
-        _SubgraphStart1 = SubgraphStart(base_name + "subgraph_start1");
-        _SubgraphEnd1 = SubgraphFinalize(base_name + "subgraph_end1");
-        _SubgraphStart2 = SubgraphStart(base_name + "subgraph_start2");
-        _SubgraphEnd2 = SubgraphFinalize(base_name + "subgraph_end2");
-        _SubgraphStart3 = SubgraphStart(base_name + "subgraph_start3");
-        _SubgraphEnd3 = SubgraphFinalize(base_name + "subgraph_end3");
     }
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
         auto hidden_states = patch_embed({inputs[0]})[0];
@@ -257,8 +241,6 @@ public:
         }
 
         _SubgraphEnd({hidden_states});
-
-        hidden_states.saveData<float>("hidden-after-1-qnn");
 
         hidden_states = patch_merger({hidden_states})[0];
 
@@ -299,7 +281,8 @@ public:
         vision_start_token_id = config.vision_start_token_id;
 
         embed_tokens = Embedding(vocab_size, hidden_dim, qwen_names.token_embd_name);
-        visual = Qwen2VisionModel_NPU(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "QuickGELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
+        // NOTE: Use GELU for NPU Qwen2VL ViT. the QuickGELU is implemented using QNN 1.702*x*sigmoid(x), which is slow
+        visual = Qwen2VisionModel_NPU(hidden_dim, vision_embed_dim, 16, vision_embed_dim * 4, "GELU", 14, 336, 32, spatial_merge_size, vision_names, vision_names.vison_model_name);
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
@@ -504,6 +487,6 @@ private:
         return {position_ids, mrope_position_deltas};
     }
 };
-} // namespace test
+} // namespace npu
 
 #endif // MODELING_QWEN2VL_NPU_HPP

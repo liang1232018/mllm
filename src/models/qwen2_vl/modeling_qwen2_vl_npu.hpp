@@ -192,8 +192,6 @@ public:
     }
 
     vector<Tensor> Forward(vector<Tensor> inputs, vector<std::any> args) override {
-        // TODO: remove it
-        auto qkv_start = mllm_time_ms();
         auto position_ids = inputs[3];
 
         auto q = inputs[0];
@@ -212,10 +210,6 @@ public:
         auto o = Tensor::mm(qk, v);
 
         o = o_quantize(o);
-
-        // TODO: remove it
-        auto qkv_end = mllm_time_ms();
-        // std::cout << "QKV mm time: " << qkv_end - qkv_start << "ms" << std::endl;
 
         return {o};
     }
@@ -917,29 +911,18 @@ public:
         auto hidden_states = inputs[0];
         auto position_ids = inputs[1];
 
-        // for (auto &block : blocks) {
-        //     hidden_states = (*block)({hidden_states, position_ids})[0];
-        // }
-        // TODO: remove it
         for (auto i = 0; i < blocks.size(); ++i) {
-            // auto start_time = mllm_time_ms();
             hidden_states = (*blocks[i])({hidden_states, position_ids})[0];
-            // auto end_time = mllm_time_ms();
-            // std::cout << "-----------------" << "block " << i << " time: " << end_time - start_time << "ms" << std::endl;
         }
 
         hidden_states = norm(hidden_states);
 
-        // // TODO: remove it
-        // auto start_time = mllm_time_ms();
         if (tie_embedding_words) {
             hidden_states = Tensor::mm(hidden_states, lm_head().transpose(Chl::SEQUENCE, Chl::DIMENSION));
         } else {
             hidden_states = lm_head_layer(hidden_states);
         }
-        // // TODO: remove it
-        // auto end_time = mllm_time_ms();
-        // std::cout << "-----------------" << "lm_head time: " << end_time - start_time << "ms" << std::endl;
+
         return {hidden_states};
     }
 };
