@@ -57,12 +57,10 @@ int main(int argc, char **argv) {
         if (!not_end) { return false; }
         return true;
     });
-    Module::isFirstChunk = false;
+    Context::Instance().inference_state().setQnnGraphFrozen(true);
     Context::Instance().inference_state().setCurSequenceLength(0);
     Context::Instance().inference_state().setExecutionType(PROMPT);
     Context::Instance().inference_state().toggleSwitching();
-    // turn on the multi-chunk prefilling
-    Module::isMultiChunkPrefilling = true;
 
     // warmup END
     std::cout << "Warmup finished." << std::endl;
@@ -127,7 +125,7 @@ int main(int argc, char **argv) {
                 }
                 return true;
             });
-            Module::isFirstChunk = false;
+            Context::Instance().inference_state().setQnnGraphFrozen(true);
         }
 
         // turn on switching, set sequence length and execution type

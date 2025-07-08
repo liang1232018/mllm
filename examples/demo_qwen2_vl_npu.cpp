@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
     prefill_body(prefill_input);
     std::cout << "after warm up" << std::endl;
 
-    Module::isFirstChunk = false;
+    Context::Instance().inference_state().setQnnGraphFrozen(true);
     Context::Instance().inference_state().setCurSequenceLength(0);
     Context::Instance().inference_state().setExecutionType(PROMPT);
     Context::Instance().inference_state().toggleSwitching();

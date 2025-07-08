@@ -77,8 +77,7 @@ int main(int argc, char **argv) {
         ChunkPipeline pipeline(real_seq_length, chunk_size);
         auto prefill_result = pipeline.run(input_tensor, opt, tokenizer, model, isSwitched);
 
-        Module::isMultiChunkPrefilling = true;
-        Module::isFirstChunk = false;
+        Context::Instance().inference_state().setQnnGraphFrozen(true);
 
         Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
         Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);

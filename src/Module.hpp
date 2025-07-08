@@ -59,10 +59,6 @@ public:
     bool op_transposed_flag = false;
 
     static Module *llm_model_ptr;
-    // tag to indicate the multi-chunk prefilling
-    static bool isMultiChunkPrefilling;
-    // tag to indicate the first chunk
-    static bool isFirstChunk;
 
     static int listIdx;
     static std::stack<int> listIdxStack;
@@ -70,7 +66,7 @@ public:
 
     static BackendType tmp_device;
 
-    static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
+    // static std::unordered_map<string, shared_ptr<Op>> tensor_func_ops; // use for QNN
 
 private:
     template <typename... Args>
@@ -95,7 +91,6 @@ public:
     virtual ~Module() = default;
 
     void load(string path) {
-        // create global loader and save to llm_model_ptr.loader as QNNBackend needs to load weights in runtime
         loader = new ParamLoader(std::move(path), true); // TODO mmap
         load(*loader);
     }

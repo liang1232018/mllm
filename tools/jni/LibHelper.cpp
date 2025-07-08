@@ -103,11 +103,11 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
                 if (!not_end) { return false; }
                 return true;
             });
-            Module::isFirstChunk = false;
+            Context::Instance().inference_state().setQnnGraphFrozen(true);
             Context::Instance().inference_state().setCurSequenceLength(0);
             Context::Instance().inference_state().setExecutionType(PROMPT);
             Context::Instance().inference_state().toggleSwitching();
-            Module::isMultiChunkPrefilling = true;
+
             // warmup END
             LOGE("QNN Warmup finished.");
         }
@@ -155,11 +155,11 @@ bool LibHelper::setUp(const std::string &base_path, std::string weights_path, st
                 if (!not_end) { return false; }
                 return true;
             });
-            Module::isFirstChunk = false;
+            Context::Instance().inference_state().setQnnGraphFrozen(true);
             Context::Instance().inference_state().setCurSequenceLength(0);
             Context::Instance().inference_state().setExecutionType(PROMPT);
             Context::Instance().inference_state().toggleSwitching();
-            Module::isMultiChunkPrefilling = true;
+
             // warmup END
             LOGE("QNN Warmup finished.");
         }
@@ -239,7 +239,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                     }
                     return true;
                 });
-                Module::isFirstChunk = false;
+                Context::Instance().inference_state().setQnnGraphFrozen(true);
             }
             Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
             Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);
@@ -399,7 +399,7 @@ void LibHelper::run(std::string &input_str, uint8_t *image, unsigned max_step, u
                     if (!not_end) { return false; }
                     return true;
                 });
-                Module::isFirstChunk = false;
+                Context::Instance().inference_state().setQnnGraphFrozen(true);
             }
             Context::Instance().inference_state().setCurSequenceLength(real_seq_length);
             Context::Instance().inference_state().setExecutionType(AUTOREGRESSIVE);

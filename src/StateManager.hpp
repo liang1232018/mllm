@@ -43,13 +43,13 @@ public:
     void setCurSequenceLength(int sequence_length) {
         cur_sequence_length_ = sequence_length;
     }
-    int getCurSequenceLength() {
+    int getCurSequenceLength() const {
         return cur_sequence_length_;
     }
     void setTotalSequenceLength(int sequence_length) {
         total_sequence_length_ = sequence_length;
     }
-    int getTotalSequenceLength() {
+    int getTotalSequenceLength() const {
         return total_sequence_length_;
     }
     void toggleSwitching() {
@@ -58,17 +58,23 @@ public:
     void setChunkSize(int chunk_size) {
         chunk_size_ = chunk_size;
     }
-    int getChunkSize() {
+    int getChunkSize() const {
         return chunk_size_;
     }
-    bool isStageSwitching() {
+    bool isStageSwitching() const {
         return is_switching_stage_;
     }
     void setExecutionType(ExecutionType type) {
         execution_type_ = type;
     }
-    ExecutionType getExecutionType() {
+    ExecutionType getExecutionType() const {
         return execution_type_;
+    }
+    void setQnnGraphFrozen(bool frozen) {
+        is_qnn_graph_frozen = frozen;
+    }
+    bool isQnnGraphFrozen() const {
+        return is_qnn_graph_frozen;
     }
 
 private:
@@ -81,6 +87,8 @@ private:
     // chunk size used in HeadLinear
     int chunk_size_ = 0;
     bool is_switching_stage_ = false;
+    // used to indicate whether the QNN graph is frozen for inference
+    bool is_qnn_graph_frozen = false;
 };
 
 class SpeculativeDecodingManager : public StateManager {

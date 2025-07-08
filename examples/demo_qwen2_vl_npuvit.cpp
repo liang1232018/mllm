@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
         Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
     }
 
-    Module::isFirstChunk = false;
+    Context::Instance().inference_state().setQnnGraphFrozen(true);
     Context::Instance().inference_state().setCurSequenceLength(0);
     Context::Instance().inference_state().setExecutionType(PROMPT);
     Context::Instance().inference_state().toggleSwitching();

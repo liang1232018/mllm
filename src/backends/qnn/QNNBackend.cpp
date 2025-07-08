@@ -1117,7 +1117,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
 #endif
     switch (Tensor::tensor_status) {
     case TENSOR_STATIC_INIT: {
-        if (!Module::isFirstChunk && layer->backend_->type() == MLLM_QNN) {
+        if (Context::Instance().inference_state().isQnnGraphFrozen() &&layer->backend_->type() == MLLM_QNN) {
             break;
         }
         layer->op_->reshape(input_tensors, output_tensors);
@@ -1125,7 +1125,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         break;
     }
     case TENSOR_STATIC_READY: {
-        if (!Module::isFirstChunk && layer->backend_->type() == MLLM_QNN && layer->param_["type"] != SUBGRAPHSTART) {
+        if (Context::Instance().inference_state().isQnnGraphFrozen() && layer->backend_->type() == MLLM_QNN && layer->param_["type"] != SUBGRAPHSTART) {
             break;
         }
         layer->op_->execute(input_tensors, output_tensors);
