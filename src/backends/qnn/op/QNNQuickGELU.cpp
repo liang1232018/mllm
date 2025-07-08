@@ -9,7 +9,6 @@
 namespace mllm {
 QNNQuickGELU::QNNQuickGELU(Backend *bn, string opName) :
     QNNCommonOp(bn, opName) {
-    scale_.setBackend(Context::Instance().globalBackends(MLLM_CPU));
 }
 
 ErrorCode QNNQuickGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
@@ -20,13 +19,9 @@ ErrorCode QNNQuickGELU::reshape(vector<shared_ptr<Tensor>> inputs, vector<shared
 }
 
 ErrorCode QNNQuickGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_ptr<Tensor>> outputs) {
-    //Todo: gelu do not supprt signed fix int8
-
     outputs[0]->setDtype(inputs[0]->dtype());
 
-    
     auto outName = outputs[0]->name();
-
     
     uint32_t scalarDimensions[1] = {1};
     float scaleData[] = {1.702f};
@@ -101,9 +96,8 @@ ErrorCode QNNQuickGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                 .memType = QNN_TENSORMEMTYPE_RAW,
                 .clientBuf = {.data = nullptr,
                             .dataSize = 0}}}};
-    graphAddNode(name() + "-multiply", "ElementWiseMultiply", {inputs[0]->name(), scaleName}, outputTensors);
-    
-    
+    graphAddNode(name() + "-multiply", "LLaMAMul", {inputs[0]->name(), scaleName}, outputTensors, {}, "LLaMAPackage");
+
     uint32_t dimensionsOutput[4];
 
     dimensionsOutput[0] = static_cast<uint32_t>(outputs[0]->batch());
@@ -156,24 +150,6 @@ ErrorCode QNNQuickGELU::setUp(vector<shared_ptr<Tensor>> inputs, vector<shared_p
                                                .clientBuf = {.data = nullptr,
                                                              .dataSize = 0}}}}};
     return graphAddNode(name(), "LLaMAMul", {sigmoidName, inputs[0]->name()}, outputTensor, {}, "LLaMAPackage");
-}
-
-ErrorCode QNNQuickGELU::load(AbstructLoader &loader) {
-    string scaleName = name();
-
-    std::string wordToRemove = "gelu";
-    int pos = scaleName.find(wordToRemove);
-    if (pos != -1) {
-        scaleName.erase(pos, wordToRemove.length());
-    }
-
-    scale_.setName(scaleName + "input_scale");
-    scale_.reshape(1, 1, 1, 1);
-    scale_.setDtype(MLLM_TYPE_F32);
-    scale_.alloc();
-    loader.load(&scale_);
-
-    return Op::load(loader);
 }
 
 } // namespace mllm
