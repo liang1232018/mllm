@@ -15,7 +15,7 @@
 #include "Model/QnnModel.hpp"
 #include "QNN.hpp"
 #include "Log/Logger.hpp"
-
+#include "HTP/QnnHtpDevice.h"
 using std::shared_ptr;
 
 using namespace qnn;
@@ -38,6 +38,36 @@ class Op;
 
 class Tensor;
 class Backend;
+
+#define CALL_QNN(apiCall)                                           \
+    do {                                                            \
+        int errorCode = ((apiCall) & 0xFFFF);                       \
+        if (errorCode != QNN_SUCCESS) {                             \
+            MLLM_LOG_ERROR("Error in file %s, line %d: error code %d\n", \
+                      __FILE__, __LINE__, errorCode);               \
+            assert(errorCode == QNN_SUCCESS);                       \
+        }                                                           \
+    } while (0)
+
+class QNNPerf {
+public:
+    static std::unique_ptr<QNNPerf> create(const QNN_INTERFACE_VER_TYPE *qnnInterface) {
+        return std::unique_ptr<QNNPerf>(new QNNPerf(qnnInterface));
+    }
+    QNNPerf(const QNN_INTERFACE_VER_TYPE *qnnInterface);
+    ~QNNPerf();
+    void setRpcLatencyAndPolling();
+    void setPowerConfigBurst();
+    void setPowerConfigBalanced();
+
+private:
+    const QNN_INTERFACE_VER_TYPE *mQnnInterface = nullptr;
+    QnnHtpDevice_PerfInfrastructure_t mPerfInfra{};
+    uint32_t mPowerConfigId;
+    QnnHtpPerfInfrastructure_PowerConfig_t mPowerConfigBurst{};
+    QnnHtpPerfInfrastructure_PowerConfig_t mPowerConfigBalanced{};
+};
+
 class QNNBackend : public Backend {
 public:
     QNNBackend(shared_ptr<MemoryManager> mm);
@@ -193,6 +223,8 @@ private:
     Qnn_DeviceHandle_t m_deviceHandle = nullptr;
 
     bool isFromCache = false;
+
+    std::unique_ptr<QNNPerf> mPerf;
 };
 
 } // namespace mllm
