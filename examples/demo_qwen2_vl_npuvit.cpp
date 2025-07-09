@@ -34,6 +34,8 @@ int main(int argc, char **argv) {
 
     Context::Instance().initBackend(MLLM_QNN);
 
+    Context::Instance().inference_state().setCPUViT(false);
+
     ParamLoader param_loader(model_path);
     auto processor = Qwen2VLProcessor(vocab_path, merge_path);
     Qwen2VLNPUConfig npu_config(tokens_limit, "1.5b-vl-rotated");
@@ -70,7 +72,7 @@ int main(int argc, char **argv) {
     prefill_embedding.get_position_ids(input_tensors, chunk_size * num_iter);
 
     // 1. QNN vit embedding
-    // NOTE: put vit here is because compatible with older qnn_context.bin. 
+    // NOTE: put vit here is because compatible with older qnn_context.bin.
     // In QNNBackend, the graph should be executed in the order of the context
     // TODO: better QNNBackend graph indexing and management
     auto vit_start = mllm_time_ms();

@@ -76,6 +76,12 @@ public:
     bool isQnnGraphFrozen() const {
         return is_qnn_graph_frozen;
     }
+    void setCPUViT(bool value) {
+        isCPUViT = value;
+    }
+    bool getIsCPUViT() const {
+        return isCPUViT;
+    }
 
 private:
     // indicate whether the state manager is in a prefill or decoding stage
@@ -89,6 +95,9 @@ private:
     bool is_switching_stage_ = false;
     // used to indicate whether the QNN graph is frozen for inference
     bool is_qnn_graph_frozen = false;
+
+    // QNN ViT specific config, when using CPU ViT, layers must be reused (block.X.)
+    bool isCPUViT = true;
 };
 
 class SpeculativeDecodingManager : public StateManager {

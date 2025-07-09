@@ -4,6 +4,7 @@
 #include <iostream>
 #include <memory>
 
+#include "Context.hpp"
 #include "Log.h"
 #include "Module.hpp"
 #include "Layer.hpp"
@@ -96,7 +97,6 @@ void QNNBackend::registerOps() {
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
     type_ = BackendType::MLLM_QNN; // used in Tensor.device()
-
 
     QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_WARN; // default QNN log level
     m_profilingLevel = ProfilingLevel::OFF;
@@ -692,7 +692,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         for (const auto &layer_next_name : layer_next_names) {
             string next_name;
             // NOTE: QNN is using CPU ViT
-            if (Layer::use_layername_2_tensorname || layer_next_name.find("no-reuse-visual") != string::npos) {
+            if (Layer::use_layername_2_tensorname || (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos)) {
                 if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
                     if (layer->param_["type"] == KVCACHE) {
                         Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
@@ -718,7 +718,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
                 // NOTE: QNN is using CPU ViT
                 string next_name = Layer::use_layername_2_tensorname ?
                                        Layer::layername_2_tensorname[layer_next_name] :
-                                       (layer_next_name.find("no-reuse-visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+                                       (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
                 output_result.push_back(*activation_tensors[next_name]);
             }
             return output_result;
@@ -751,7 +751,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         // NOTE: QNN is using CPU ViT
         string next_name = Layer::use_layername_2_tensorname ?
                                Layer::layername_2_tensorname[layer_next_name] :
-                               (layer_next_name.find("no-reuse-visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+                               (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
         output_tensors.push_back(activation_tensors[next_name]);
     }
 #ifdef DEBUGOPTIME
@@ -797,7 +797,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         // NOTE: QNN is using CPU ViT
         string next_name = Layer::use_layername_2_tensorname ?
                                Layer::layername_2_tensorname[layer_next_name] :
-                               (layer_next_name.find("no-reuse-visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+                               (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
 #ifdef DEBUGSAVETENSOR
         activation_tensors[next_name]->saveNData<float>(layer_next_name);
 #endif

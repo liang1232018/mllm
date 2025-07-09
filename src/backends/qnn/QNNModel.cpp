@@ -83,7 +83,7 @@ ModelError_t QNNModel::addTensor(const char *nodeName, Qnn_Tensor_t *tensor, boo
     std::string mapEntry = std::string(QNN_TENSOR_GET_NAME(tensor));
     if (m_modelTensorsMap.find(mapEntry) != m_modelTensorsMap.end()) {
         MLLM_LOG_ERROR_STREAM << "QnnModel::addTensor() creating tensor "
-                              << mapEntry << "for node" << nodeName << "already exists.";
+                              << mapEntry << "for node " << nodeName << "already exists.";
         return MODEL_TENSOR_ERROR;
     }
 
