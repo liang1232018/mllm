@@ -72,18 +72,12 @@ ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<shared_
                                                     .dataSize = 0}}}});
     }
 
-    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName)) {
-        exit(1);
-        return ErrorCode::INVALID_VALUE;
-    }
+    qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputTensors, params, packageName); 
     return MLLM_NO_ERROR;
 }
 
 ErrorCode QNNCommonOp::graphAddNode(string name, string nodeType, vector<string> inputTensorNames, vector<Qnn_Tensor_t> outputs, vector<Qnn_Param_t> params, string packageName) {
-    if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName)) {
-        exit(1);
-        return ErrorCode::INVALID_VALUE;
-    }
+    qnnBackend_->graphAddNode(name, nodeType, inputTensorNames, outputs, params, packageName); 
     return MLLM_NO_ERROR;
 }
 

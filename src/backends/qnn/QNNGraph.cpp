@@ -124,16 +124,6 @@ const vector<shared_ptr<Tensor>> &QNNGraph::forward(std::string graphName) {
     return ops_output_tensors_[op_names_[op_names_.size() - 1]];
 }
 
-void QNNGraph::free() {
-    auto *qnn_backend = dynamic_cast<QNNBackend *>(this->backend_);
-    qnn_backend->freeGraphDataStructure(graphName_);
-}
-
-void QNNGraph::allFree() {
-    auto *qnn_backend = dynamic_cast<QNNBackend *>(this->backend_);
-    qnn_backend->afterAllGraphsExecute();
-}
-
 const vector<shared_ptr<Tensor>> &QNNGraph::forward(bool autofree) {
     for (const auto &op_name : op_names_) {
         if (ops_not_inputs_empty_[op_name]) {

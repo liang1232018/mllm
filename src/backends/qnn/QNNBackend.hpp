@@ -11,10 +11,7 @@
 #include <memory>
 
 #include "Utils/IOTensor.hpp"
-#include "PAL/DynamicLoading.hpp"
 #include "Model/QnnModel.hpp"
-#include "QNN.hpp"
-#include "Log/Logger.hpp"
 #include "HTP/QnnHtpDevice.h"
 using std::shared_ptr;
 
@@ -24,31 +21,14 @@ using namespace qnn::tools;
 namespace mllm {
 class Module;
 class Layer;
-
-enum class StatusCode {
-    SUCCESS,
-    FAILURE,
-    FAILURE_INPUT_LIST_EXHAUSTED,
-    FAILURE_SYSTEM_ERROR,
-    FAILURE_SYSTEM_COMMUNICATION_ERROR,
-    QNN_FEATURE_UNSUPPORTED
-};
-
 class Op;
-
 class Tensor;
 class Backend;
 
-#define CALL_QNN(apiCall)                                           \
-    do {                                                            \
-        int errorCode = ((apiCall) & 0xFFFF);                       \
-        if (errorCode != QNN_SUCCESS) {                             \
-            MLLM_LOG_ERROR("Error in file %s, line %d: error code %d\n", \
-                      __FILE__, __LINE__, errorCode);               \
-            assert(errorCode == QNN_SUCCESS);                       \
-        }                                                           \
-    } while (0)
-
+enum class ProfilingLevel { OFF,
+                            BASIC,
+                            DETAILED,
+                            INVALID };
 class QNNPerf {
 public:
     static std::unique_ptr<QNNPerf> create(const QNN_INTERFACE_VER_TYPE *qnnInterface) {
@@ -66,6 +46,50 @@ private:
     uint32_t mPowerConfigId;
     QnnHtpPerfInfrastructure_PowerConfig_t mPowerConfigBurst{};
     QnnHtpPerfInfrastructure_PowerConfig_t mPowerConfigBalanced{};
+};
+
+class QNNRuntime {
+    friend class QNNBackend;
+
+public:
+    ~QNNRuntime();
+
+    static std::unique_ptr<QNNRuntime> create(ProfilingLevel profilingLevel = ProfilingLevel::OFF, QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_WARN) {
+        return std::unique_ptr<QNNRuntime>(initRuntime(profilingLevel, qnnLogLevel));
+    }
+
+    bool createContext(Qnn_ContextHandle_t &context, QnnContext_Config_t **contextConfig = nullptr);
+    bool retrieveContext(Qnn_ContextHandle_t &context, 
+        std::vector<qnn_wrapper_api::GraphInfo_t *> &graphsInfo, 
+        QnnContext_Config_t **contextConfig = nullptr);
+
+private:
+    QNN_INTERFACE_VER_TYPE qnnInterface;
+    QNN_SYSTEM_INTERFACE_VER_TYPE qnnSystemInterface;
+
+    Qnn_LogHandle_t logHandle = nullptr;
+    Qnn_BackendHandle_t backendHandle = nullptr;
+    Qnn_DeviceHandle_t deviceHandle = nullptr;
+    Qnn_ProfileHandle_t profileHandle = nullptr;
+
+    QNNRuntime(QNN_INTERFACE_VER_TYPE qnnInterface,
+               QNN_SYSTEM_INTERFACE_VER_TYPE qnnSystemInterface,
+               Qnn_LogHandle_t qnnLogHandle,
+               Qnn_BackendHandle_t qnnBackendHandle,
+               Qnn_DeviceHandle_t qnnDeviceHandle,
+               Qnn_ProfileHandle_t qnnProfileHandle = nullptr) :
+        qnnInterface(qnnInterface), qnnSystemInterface(qnnSystemInterface), logHandle(qnnLogHandle), backendHandle(qnnBackendHandle), deviceHandle(qnnDeviceHandle), profileHandle(qnnProfileHandle) {
+    }
+
+    std::string getBackendBuildId(QNN_INTERFACE_VER_TYPE &qnnInterface) {
+        char *backendBuildId{nullptr};
+        if (QNN_SUCCESS != qnnInterface.backendGetBuildId((const char **)&backendBuildId)) {
+            MLLM_LOG_ERROR_LEGACY("Unable to get build Id from the backend.");
+        }
+        return (backendBuildId == nullptr ? std::string("") : std::string(backendBuildId));
+    }
+
+    static QNNRuntime *initRuntime(ProfilingLevel profilingLevel, QnnLog_Level_t qnnLogLevel);
 };
 
 class QNNBackend : public Backend {
@@ -104,17 +128,17 @@ public:
         return true;
     }
 
-    qnn_wrapper_api::ModelError_t graphAddNode(string name, string nodeType,
+    void graphAddNode(string name, string nodeType,
                                                std::vector<string> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
                                                std::vector<Qnn_Param_t> params,
                                                string packageName);
 
-    qnn_wrapper_api::ModelError_t modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor);
+    void modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor);
 
     virtual void onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) override;
     virtual void onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName = "") override;
-    virtual void onExecuteEnd(std::vector<shared_ptr<Tensor>> &outputs, const string &graph_name) override;
+    virtual void onExecuteEnd(std::vector<shared_ptr<Tensor>> &outputs, const string &graph_name) override {};
 
     std::vector<Tensor> runFunc(
         std::vector<std::string> out_names,
@@ -125,10 +149,6 @@ public:
     std::vector<Tensor> runLayer(Layer *layer, std::vector<Tensor> inputs, int N) override;
     std::vector<Tensor> runForward(Module *module, std::vector<Tensor> inputs, std::vector<std::any> args) override;
 
-    void freeGraphDataStructure(string graphName);
-
-    void afterAllGraphsExecute();
-
     void pushInputBuffers(uint8_t *ptr) {
         currentInputBuffers->push_back(ptr);
     }
@@ -136,51 +156,20 @@ public:
         currentOutputBuffers->push_back(ptr);
     }
 
-    void setDataLoader(AbstructLoader *dataLoader) {
-        dataLoader_ = dataLoader;
-    }
-
     void saveQNNContext();
-
-    StatusCode retrieveQNNContext();
 
 private:
     qnn_wrapper_api::ModelError_t graphFinilize();
     qnn_wrapper_api::ModelError_t graphConfig();
 
     void registerOps() override;
-    void registerFuncs() override{};
+    void registerFuncs() override {};
 
-    // @brief Print a message to STDERR then exit with a non-zero
-    void reportError(const std::string &err);
+    void extractBackendProfilingInfo(Qnn_ProfileHandle_t profileHandle);
 
-    StatusCode createContext();
+    void extractProfilingSubEvents(QnnProfile_EventId_t profileEventId);
 
-    StatusCode registerOpPackages();
-
-    StatusCode freeContext();
-
-    StatusCode terminateBackend();
-
-    StatusCode initializeProfiling();
-
-    std::string getBackendBuildId();
-
-    StatusCode isDevicePropertySupported();
-
-    StatusCode createDevice();
-
-    StatusCode freeDevice();
-
-    StatusCode verifyFailReturnStatus(Qnn_ErrorHandle_t errCode);
-
-    StatusCode extractBackendProfilingInfo(Qnn_ProfileHandle_t profileHandle);
-
-    StatusCode extractProfilingSubEvents(QnnProfile_EventId_t profileEventId);
-
-    StatusCode extractProfilingEvent(QnnProfile_EventId_t profileEventId);
-
-    AbstructLoader *dataLoader_;
+    void extractProfilingEvent(QnnProfile_EventId_t profileEventId);
 
     std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
     std::vector<uint8_t *> *currentInputBuffers;
@@ -193,37 +182,25 @@ private:
     std::vector<qnn_wrapper_api::QnnModel> qnnModels_;
     int qnnModelIndex_;
 
-    sample_app::QnnFunctionPointers m_qnnFunctionPointers;
-
-    std::vector<std::string> m_opPackagePaths;
-
     QnnBackend_Config_t **m_backendConfig = nullptr;
     Qnn_ContextHandle_t m_context = nullptr;
     QnnContext_Config_t **m_contextConfig = nullptr;
     bool m_debug;
 
-    iotensor::InputDataType m_inputDataType;
-    sample_app::ProfilingLevel m_profilingLevel;
+    ProfilingLevel m_profilingLevel;
 
-    // std::map<int, qnn_wrapper_api::GraphInfo_t *> graphInfoMap_;
     std::vector<qnn_wrapper_api::GraphInfo_t *> graphsInfo_;
 
     const QnnGraph_Config_t **graphConfigs = nullptr;
-    // these two pointers is .so library handle
-    void *m_backendLibraryHandle = nullptr;
 
     iotensor::IOTensor m_ioTensor;
-    bool m_isBackendInitialized;
-    bool m_isContextCreated;
-    Qnn_ProfileHandle_t m_profileBackendHandle = nullptr;
+
     qnn_wrapper_api::GraphConfigInfo_t **m_graphConfigsInfo = nullptr;
     uint32_t m_graphConfigsInfoCount;
-    Qnn_LogHandle_t m_logHandle = nullptr;
-    Qnn_BackendHandle_t m_backendHandle = nullptr;
-    Qnn_DeviceHandle_t m_deviceHandle = nullptr;
 
     bool isFromCache = false;
 
+    std::unique_ptr<QNNRuntime> mRuntime;
     std::unique_ptr<QNNPerf> mPerf;
 };
 

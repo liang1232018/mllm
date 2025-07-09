@@ -1,6 +1,5 @@
 #include "QNNMemoryManager.hpp"
 #include "Log.h"
-#include "Logger.hpp"
 #include "QnnTypes.h"
 #include <cassert>
 #include <cstddef>
@@ -9,24 +8,14 @@
 #include <cstdio>
 #include <iostream>
 #include <utility>
+#include <dlfcn.h>
 
 namespace mllm {
-
-template <class T>
-static inline T resolveSymbol(void *libHandle, const char *sym) {
-    T ptr = (T)pal::dynamicloading::dlSym(libHandle, sym);
-    if (ptr == nullptr) {
-        MLLM_LOG_ERROR("Unable to access symbol {}. pal::dynamicloading::dlError(): {}",
-                       sym,
-                       pal::dynamicloading::dlError());
-    }
-    return ptr;
-}
 
 QNNMemoryManager::QNNMemoryManager() {
 #ifdef QNN_ARM
     // load libcdsprpc.so
-    void *libCdspHandle = pal::dynamicloading::dlOpen("libcdsprpc.so", pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_LOCAL);
+    void *libCdspHandle = dlopen("libcdsprpc.so", RTLD_NOW | RTLD_LOCAL);
     if (nullptr == libCdspHandle) {
         MLLM_LOG_ERROR_STREAM << "dlopen libcdsprpc.so failed" << std::endl;
     }
@@ -40,23 +29,6 @@ QNNMemoryManager::QNNMemoryManager() {
         MLLM_LOG_ERROR_STREAM << "dlsym failed" << std::endl;
     }
 #endif
-    // Get QNN Interface
-    void *libBackendHandle = pal::dynamicloading::dlOpen(
-        "libQnnHtp.so", pal::dynamicloading::DL_NOW | pal::dynamicloading::DL_GLOBAL);
-    QnnInterfaceGetProvidersFn_t getInterfaceProviders{nullptr};
-    getInterfaceProviders =
-        resolveSymbol<QnnInterfaceGetProvidersFn_t>(libBackendHandle, "QnnInterface_getProviders");
-    QnnInterface_t **interfaceProviders{nullptr};
-    uint32_t numProviders{0};
-    if (QNN_SUCCESS != getInterfaceProviders((const QnnInterface_t ***)&interfaceProviders, &numProviders)) {
-        MLLM_LOG_ERROR_STREAM << "Failed to get interface providers." << std::endl;
-    }
-    for (size_t pIdx = 0; pIdx < numProviders; pIdx++) {
-        if (QNN_API_VERSION_MAJOR == interfaceProviders[pIdx]->apiVersion.coreApiVersion.major && QNN_API_VERSION_MINOR <= interfaceProviders[pIdx]->apiVersion.coreApiVersion.minor) {
-            qnnInterface_ = interfaceProviders[pIdx]->QNN_INTERFACE_VER_NAME;
-            break;
-        }
-    }
 }
 
 QNNMemoryManager::~QNNMemoryManager() {
@@ -73,7 +45,8 @@ QNNMemoryManager::~QNNMemoryManager() {
 #endif
 }
 
-void QNNMemoryManager::setQnnInterfaceAndContext(void *context) {
+void QNNMemoryManager::setQnnInterfaceAndContext(QNN_INTERFACE_VER_TYPE qnnInterface, void *context) {
+    qnnInterface_ = qnnInterface;
     context_ = context;
     if (context_ == nullptr) {
         MLLM_LOG_ERROR_STREAM << "context is null" << std::endl;

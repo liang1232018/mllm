@@ -630,29 +630,4 @@ ModelError_t getSingleGraphInfoFromModel(QnnModel &model, GraphInfoPtr_t* graphI
     return err;
 }
 
-ModelError_t QnnModel::freeTensors() {
-  
-  for (std::map<std::string, Qnn_Tensor_t>::iterator tensorIt = m_modelTensorsMap.begin();
-       tensorIt != m_modelTensorsMap.end();) {
-    Qnn_Tensor_t &tensor = tensorIt->second;
-    
-    tensorIt = m_modelTensorsMap.erase(tensorIt++);
-  }
-
-  return MODEL_NO_ERROR;
-}
-
-ModelError_t QnnModel::clearGraph() {
-  
-  m_modelInputTensors.resize(0);
-  m_modelOutputTensors.resize(0);
-
-  m_modelOutputTensorMap.clear();
-  m_graphName.clear();
-  
-  
-
-  return MODEL_NO_ERROR;
-}
-
 }  // namespace qnn_wrapper_api

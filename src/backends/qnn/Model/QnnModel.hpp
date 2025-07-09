@@ -217,11 +217,6 @@ class QnnModel {
    */
   ModelError_t freeCachedTensors();
 
-
-  ModelError_t freeTensors();
-
-  ModelError_t clearGraph();
-
  private:
   Qnn_GraphHandle_t m_graph = nullptr;
   std::string m_graphName;

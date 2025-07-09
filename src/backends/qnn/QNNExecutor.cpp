@@ -73,8 +73,6 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     auto ex_time_start = mllm_time_us();
     PRINT_MEMORY_USAGE("before setup all graph");
 
-    static_cast<QNNBackend *>(net->backends()[MLLM_QNN].get())->setDataLoader(data_loader_);
-
     for (int i = 0; i < (int)net->subGraph().size(); ++i) {
         string name = graphNamingRule(i);
         auto &g = net->subGraph()[name];
@@ -118,7 +116,6 @@ void QNNExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>> input_t
     {
         auto &g = net->subGraph()[graphNamingRule(1)];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        qnn_graph->allFree();
     }
 
     if (input_tensors[0]->sequence() == 1) {
@@ -179,8 +176,6 @@ void QNNPipelineExecutor::warmup(Context *ctx, Net *net, vector<shared_ptr<Tenso
         }
 
         PRINT_MEMORY_USAGE("before setup all graph");
-
-        static_cast<QNNBackend *>(net->backends()[MLLM_QNN].get())->setDataLoader(data_loader_);
 
         for (int i = 0; i < (int)net->subGraph().size(); ++i) {
             string name = graphNamingRule(i);
@@ -324,13 +319,6 @@ void QNNPipelineExecutor::run(Context *ctx, Net *net, vector<shared_ptr<Tensor>>
         auto &g = net->subGraph()[name];
         auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
         qnn_graph->free();
-    }
-    // use the second graph to free all context is OK.
-    {
-        string name = graphNamingRule(1);
-        auto &g = net->subGraph()[name];
-        auto *qnn_graph = dynamic_cast<QNNGraph *>(g.get());
-        qnn_graph->allFree();
     }
 
     if (input_tensors[0]->sequence() == 1) {

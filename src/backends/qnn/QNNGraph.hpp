@@ -39,8 +39,8 @@ public:
 
     void setUpTensors(std::string graphName);
     void setUpTensors() override;
-    void free();
-    void allFree();
+    void free() {};
+
 private:
     std::string graphName_;
 };
