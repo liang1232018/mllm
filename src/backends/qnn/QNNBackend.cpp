@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <inttypes.h>
 
 #include <cstring>
 #include <iostream>
@@ -7,21 +6,15 @@
 
 #include "Log.h"
 #include "Module.hpp"
+#include "Layer.hpp"
 #include "OpDefined.hpp"
 #include "QNNBackend.hpp"
-#include "ParamLoader.hpp"
-#include "QnnModel.hpp"
-#include "Utils/QnnSampleAppUtils.hpp"
-#include "Utils/IOTensor.hpp"
-#include "Log/Logger.hpp"
-#include "WrapperUtils/QnnWrapperUtils.hpp"
+#include "QNNUtils.hpp"
+#include "QNNModel.hpp"
 #include "QNNMemoryManager.hpp"
 #include "QnnTypes.h"
 #include "HTP/QnnHtpGraph.h"
-#include "Layer.hpp"
 #include "HTP/QnnHtpDevice.h"
-
-#include "QNNUtils.hpp"
 
 #include "Types.hpp"
 #include "op/QNNAdd.hpp"
@@ -58,10 +51,6 @@
 #ifdef DEBUGPRINT
 #include "Timing.hpp"
 #endif
-
-using namespace qnn;
-using namespace qnn::tools;
-using namespace qnn::tools::sample_app;
 
 // Flag to determine if Backend should node validation for each opNode added
 #ifdef QNN_VALIDATE_NODE
@@ -107,17 +96,10 @@ void QNNBackend::registerOps() {
 QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     Backend(mm) {
     type_ = BackendType::MLLM_QNN; // used in Tensor.device()
-    if (!log::initializeLogging()) {
-        MLLM_LOG_ERROR_STREAM << "ERROR: Unable to initialize logging!\n";
-        return;
-    }
 
-    // this logger is used in QNN_INFO, QNN_DEBUG etc log, which is still used in QNN include classes, which should be removed
-    // QNNRuntime has another Log instance, which is used by QNN inner output
-    QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_WARN; // default log level
 
+    QnnLog_Level_t qnnLogLevel = QNN_LOG_LEVEL_WARN; // default QNN log level
     m_profilingLevel = ProfilingLevel::OFF;
-    log::setLogLevel(qnnLogLevel);
     m_debug = false; // when set true, NATIVE tensor will be regared as APP_READ tensor
 
     loadQNNSymbol();
@@ -169,7 +151,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     // create a new graph
     qnnModelIndex_ = qnnModels_.size();
     qnnModelIndexMap_.insert(std::make_pair(graphName, qnnModelIndex_));
-    qnnModels_.push_back(qnn_wrapper_api::QnnModel());
+    qnnModels_.push_back(QNNModel());
 
     // initialize qnn graph info, set graph info, graph count
     // NOTE: currently not using it
@@ -187,7 +169,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
 
     const QnnGraph_Config_t **graphConfigs = pGraphConfig;
 
-    qnn_wrapper_api::ModelError_t err = qnn_wrapper_api::MODEL_NO_ERROR;
+    ModelError_t err = MODEL_NO_ERROR;
 
     if (!isFromCache) {
         err = qnnModels_[qnnModelIndex_].initialize(mRuntime->backendHandle,
@@ -203,7 +185,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
         qnnModels_[qnnModelIndex_].setInitFromCache();
     }
 
-    if (err != qnn_wrapper_api::MODEL_NO_ERROR) {
+    if (err != MODEL_NO_ERROR) {
         MLLM_LOG_ERROR_STREAM << "QNNBackend graph initialization failed for graph: " << graphName
                               << " with error code: " << static_cast<int>(err) << std::endl;
         exit(1);
@@ -279,33 +261,32 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     }
 }
 
-qnn_wrapper_api::ModelError_t QNNBackend::graphFinilize() {
+bool QNNBackend::graphFinilize() {
     // Populate the constructed graphs in provided output variables
-    qnn_wrapper_api::GraphInfo_t *graphInfo = nullptr;
+    GraphInfo_t *graphInfo = nullptr;
 
     // Graph finalize
     CALL_QNN(getSingleGraphInfoFromModel(qnnModels_[qnnModelIndex_], &graphInfo));
     if (QNN_GRAPH_NO_ERROR != mRuntime->qnnInterface.graphFinalize(graphInfo->graph, mRuntime->profileHandle, nullptr)) {
-        return qnn_wrapper_api::ModelError_t::MODEL_GRAPH_ERROR;
+        return false;
     }
     if (ProfilingLevel::OFF != m_profilingLevel) {
         extractBackendProfilingInfo(mRuntime->profileHandle);
     }
     graphsInfo_.push_back(graphInfo);
 
-    return qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR;
+    return true;
 }
 
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
     // online graph building, finalize graph
     if (!isFromCache) {
         PRINT_MEMORY_USAGE("before graph finilize")
-        auto status = graphFinilize();
-        PRINT_MEMORY_USAGE("after graph finilize")
-        if (qnn_wrapper_api::ModelError_t::MODEL_NO_ERROR != status) {
+        if (!graphFinilize()) {
             MLLM_LOG_ERROR("Graph Finalization failure");
             exit(1);
         }
+        PRINT_MEMORY_USAGE("after graph finilize")
     }
 
     Qnn_Tensor_t *qnnInputs = nullptr;
@@ -314,7 +295,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
     auto graphInfo = graphsInfo_[qnnModelIndex_];
 
     // directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
-    if (iotensor::StatusCode::SUCCESS != m_ioTensor.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
+    if (!ioUtil.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
         MLLM_LOG_ERROR("Error in setting up Input and output Tensors for qnnModelIndex_: %d", qnnModelIndex_);
     }
 
@@ -354,7 +335,7 @@ void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<share
     // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
     auto t_qnnModelIndex_ = qnnModelIndexMap_[graphName];
 
-    qnn_wrapper_api::GraphInfo_t *graphInfo = graphsInfo_[t_qnnModelIndex_];
+    GraphInfo_t *graphInfo = graphsInfo_[t_qnnModelIndex_];
 
     Qnn_Tensor_t *inputs_ = graphInfo->inputTensors;
     Qnn_Tensor_t *outputs_ = graphInfo->outputTensors;
@@ -483,10 +464,8 @@ void QNNBackend::saveQNNContext() {
     mRuntime->qnnInterface.contextGetBinary(m_context, reinterpret_cast<void *>(binaryBuffer.get()), binarySize, &writtenSize);
 
     if (binarySize < writtenSize) {
-        QNN_ERROR(
-            "Illegal written buffer size [%d] bytes. Cannot exceed allocated memory of [%d] bytes",
-            binarySize,
-            writtenSize);
+        MLLM_LOG_ERROR_STREAM << "QNN context binary size mismatch: expected " << binarySize
+                              << " bytes, but wrote " << writtenSize << " bytes." << std::endl;
     }
     std::ofstream file("qnn_context.bin", std::ios::binary);
     file.write(reinterpret_cast<char *>(binaryBuffer.get()), writtenSize);
@@ -1134,7 +1113,7 @@ bool QNNRuntime::createContext(Qnn_ContextHandle_t &context, QnnContext_Config_t
     return true;
 }
 bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t &context,
-                                 std::vector<qnn_wrapper_api::GraphInfo_t *> &graphsInfo,
+                                 std::vector<GraphInfo_t *> &graphsInfo,
                                  QnnContext_Config_t **contextConfig) {
     // Read the binary from qnn_context.bin and get the size in byte
     std::ifstream file("qnn_context.bin", std::ios::binary | std::ios::ate);
@@ -1158,7 +1137,7 @@ bool QNNRuntime::retrieveContext(Qnn_ContextHandle_t &context,
         return false;
     }
 
-    qnn_wrapper_api::GraphInfo_t **tmpGraphsInfo = nullptr;
+    GraphInfo_t **tmpGraphsInfo = nullptr;
     uint32_t graphNum;
     // fill GraphInfo_t based on binary info
     if (!copyMetadataToGraphsInfo(binaryInfo, tmpGraphsInfo, graphNum)) {

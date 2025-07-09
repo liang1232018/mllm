@@ -5,18 +5,14 @@
 #include "Op.hpp"
 #include "OpDefined.hpp"
 #include "ParamLoader.hpp"
+#include "QNNUtils.hpp"
+#include "QNNModel.hpp"
 #include "QnnTypes.h"
+#include "HTP/QnnHtpDevice.h"
+#include "System/QnnSystemInterface.h"
 #include "Types.hpp"
 #include "MemoryManager.hpp"
 #include <memory>
-
-#include "Utils/IOTensor.hpp"
-#include "Model/QnnModel.hpp"
-#include "HTP/QnnHtpDevice.h"
-using std::shared_ptr;
-
-using namespace qnn;
-using namespace qnn::tools;
 
 namespace mllm {
 class Module;
@@ -59,9 +55,9 @@ public:
     }
 
     bool createContext(Qnn_ContextHandle_t &context, QnnContext_Config_t **contextConfig = nullptr);
-    bool retrieveContext(Qnn_ContextHandle_t &context, 
-        std::vector<qnn_wrapper_api::GraphInfo_t *> &graphsInfo, 
-        QnnContext_Config_t **contextConfig = nullptr);
+    bool retrieveContext(Qnn_ContextHandle_t &context,
+                         std::vector<GraphInfo_t *> &graphsInfo,
+                         QnnContext_Config_t **contextConfig = nullptr);
 
 private:
     QNN_INTERFACE_VER_TYPE qnnInterface;
@@ -129,9 +125,9 @@ public:
     }
 
     void graphAddNode(string name, string nodeType,
-                                               std::vector<string> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
-                                               std::vector<Qnn_Param_t> params,
-                                               string packageName);
+                      std::vector<string> inputTensorNames, std::vector<Qnn_Tensor_t> outputTensors,
+                      std::vector<Qnn_Param_t> params,
+                      string packageName);
 
     void modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor);
 
@@ -159,8 +155,7 @@ public:
     void saveQNNContext();
 
 private:
-    qnn_wrapper_api::ModelError_t graphFinilize();
-    qnn_wrapper_api::ModelError_t graphConfig();
+    bool graphFinilize();
 
     void registerOps() override;
     void registerFuncs() override {};
@@ -179,7 +174,7 @@ private:
     std::map<OpType, QNNBackend::Creator *> map_creator_;
 
     std::map<std::string, int> qnnModelIndexMap_;
-    std::vector<qnn_wrapper_api::QnnModel> qnnModels_;
+    std::vector<QNNModel> qnnModels_;
     int qnnModelIndex_;
 
     QnnBackend_Config_t **m_backendConfig = nullptr;
@@ -189,13 +184,13 @@ private:
 
     ProfilingLevel m_profilingLevel;
 
-    std::vector<qnn_wrapper_api::GraphInfo_t *> graphsInfo_;
+    std::vector<GraphInfo_t *> graphsInfo_;
 
     const QnnGraph_Config_t **graphConfigs = nullptr;
 
-    iotensor::IOTensor m_ioTensor;
+    IOTensorUtil ioUtil;
 
-    qnn_wrapper_api::GraphConfigInfo_t **m_graphConfigsInfo = nullptr;
+    GraphConfigInfo_t **m_graphConfigsInfo = nullptr;
     uint32_t m_graphConfigsInfoCount;
 
     bool isFromCache = false;

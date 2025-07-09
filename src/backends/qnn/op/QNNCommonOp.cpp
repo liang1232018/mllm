@@ -1,7 +1,6 @@
 #include "QNNCommonOp.hpp"
 #include "OpDefined.hpp"
 #include "QnnTypes.h"
-#include "WrapperUtils/QnnWrapperUtils.hpp"
 #include "Types.hpp"
 #include <string>
 

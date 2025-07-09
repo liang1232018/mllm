@@ -7,22 +7,6 @@ file(GLOB MLLM_QNN_SRC
     ${CMAKE_CURRENT_LIST_DIR}/*.hpp
     ${CMAKE_CURRENT_LIST_DIR}/*.h
 
-    ${CMAKE_CURRENT_LIST_DIR}/Log/*.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Log/*.hpp
-
-    ${CMAKE_CURRENT_LIST_DIR}/PAL/include/PAL/*.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/PAL/src/common/*.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/PAL/src/linux/*.cpp
-
-    ${CMAKE_CURRENT_LIST_DIR}/Utils/*.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Utils/*.hpp
-
-    ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils/*.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/WrapperUtils/*.hpp
-
-    ${CMAKE_CURRENT_LIST_DIR}/Model/*.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/Model/*.hpp
-
     ${CMAKE_CURRENT_LIST_DIR}/op/*.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/*.hpp
     
