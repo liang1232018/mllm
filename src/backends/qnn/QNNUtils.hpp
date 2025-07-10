@@ -4,9 +4,7 @@
 #include "Log.h"
 #include "QnnCommon.h"
 #include "QnnInterface.h"
-// #include "QnnWrapperUtils.hpp"
 #include "System/QnnSystemInterface.h"
-#include <vector>
 
 namespace mllm {
 
@@ -72,22 +70,5 @@ bool deepCopyQnnTensorInfo(Qnn_Tensor_t *dst, const Qnn_Tensor_t *src);
 bool freeQnnTensor(Qnn_Tensor_t &tensor);
 
 bool freeQnnTensors(Qnn_Tensor_t *&tensors, uint32_t numTensors);
-
-class IOTensorUtil {
-public:
-    // just set the tensor info, no buffer allocation
-    // used when enable qnn shared buffer for input and output
-    bool setupTensorsNoCopy(Qnn_Tensor_t **tensors, uint32_t tensorCount, Qnn_Tensor_t *tensorsInfo);
-    bool setupInputAndOutputTensors(Qnn_Tensor_t **inputs, Qnn_Tensor_t **outputs, GraphInfo_t graphInfo);
-    inline void fillDims(std::vector<uint32_t> &dims, uint32_t *inDimensions, uint32_t rank) {
-        if (nullptr == inDimensions) {
-            MLLM_LOG_ERROR_LEGACY("input dimensions is nullptr");
-            return;
-        }
-        for (size_t r = 0; r < rank; r++) {
-            dims.push_back(inDimensions[r]);
-        }
-    }
-};
 
 } // namespace mllm

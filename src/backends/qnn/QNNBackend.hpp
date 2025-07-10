@@ -177,21 +177,12 @@ private:
     std::vector<QNNModel> qnnModels_;
     int qnnModelIndex_;
 
-    QnnBackend_Config_t **m_backendConfig = nullptr;
     Qnn_ContextHandle_t m_context = nullptr;
-    QnnContext_Config_t **m_contextConfig = nullptr;
     bool m_debug;
 
     ProfilingLevel m_profilingLevel;
 
     std::vector<GraphInfo_t *> graphsInfo_;
-
-    const QnnGraph_Config_t **graphConfigs = nullptr;
-
-    IOTensorUtil ioUtil;
-
-    GraphConfigInfo_t **m_graphConfigsInfo = nullptr;
-    uint32_t m_graphConfigsInfoCount;
 
     bool isFromCache = false;
 

@@ -325,43 +325,4 @@ bool freeQnnTensors(Qnn_Tensor_t *&tensors,
     return true;
 }
 
-bool IOTensorUtil::setupTensorsNoCopy(Qnn_Tensor_t **tensors, uint32_t tensorCount, Qnn_Tensor_t *tensorsInfo) {
-    if (nullptr == tensorsInfo) {
-        MLLM_LOG_ERROR_LEGACY("tensorWrappers is nullptr");
-        return false;
-    }
-    if (0 == tensorCount) {
-        return true;
-    }
-
-    *tensors = (Qnn_Tensor_t *)calloc(1, tensorCount * sizeof(Qnn_Tensor_t));
-    if (nullptr == *tensors) {
-        MLLM_LOG_ERROR_LEGACY("mem alloc failed for *tensors");
-        return false;
-    }
-    for (size_t tensorIdx = 0; tensorIdx < tensorCount; tensorIdx++) {
-        Qnn_Tensor_t wrapperTensor = tensorsInfo[tensorIdx];
-        std::vector<uint32_t> dims;
-        fillDims(dims, QNN_TENSOR_GET_DIMENSIONS(wrapperTensor), QNN_TENSOR_GET_RANK(wrapperTensor));
-        (*tensors)[tensorIdx] = QNN_TENSOR_INIT;
-        if (!deepCopyQnnTensorInfo(((*tensors) + tensorIdx), &wrapperTensor)) return false;
-        QNN_TENSOR_SET_MEM_TYPE(((*tensors) + tensorIdx), QNN_TENSORMEMTYPE_MEMHANDLE);
-    }
-
-    return true;
-}
-
-bool IOTensorUtil::setupInputAndOutputTensors(
-    Qnn_Tensor_t **inputs, Qnn_Tensor_t **outputs, GraphInfo_t graphInfo) {
-    if (true != setupTensorsNoCopy(inputs, graphInfo.numInputTensors, (graphInfo.inputTensors))) {
-        MLLM_LOG_ERROR_LEGACY("Failure in setting up input tensors");
-        return false;
-    }
-    if (true != setupTensorsNoCopy(outputs, graphInfo.numOutputTensors, (graphInfo.outputTensors))) {
-        MLLM_LOG_ERROR_LEGACY("Failure in setting up output tensors");
-        return false;
-    }
-    return true;
-}
-
 } // namespace mllm

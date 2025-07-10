@@ -176,9 +176,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     graphConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
     graphConfig.customConfig = &customConfig;
 
-    const QnnGraph_Config_t *pGraphConfig[] = {&graphConfig, NULL};
-
-    const QnnGraph_Config_t **graphConfigs = pGraphConfig;
+    const QnnGraph_Config_t *graphConfigList[] = {&graphConfig, NULL};
 
     ModelError_t err = MODEL_NO_ERROR;
 
@@ -189,7 +187,7 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
                                                     graphName.c_str(),
                                                     m_debug,
                                                     DO_GRAPH_NODE_VALIDATIONS,
-                                                    graphConfigs);
+                                                    graphConfigList);
     } else {
         // set init from cache, the input and output tensor info still needs the QnnModel to maintain
         // setting this is to avoid the tensor creation in the qnn graph
@@ -300,27 +298,21 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
         PRINT_MEMORY_USAGE("after graph finilize")
     }
 
-    Qnn_Tensor_t *qnnInputs = nullptr;
-    Qnn_Tensor_t *qnnOutputs = nullptr;
-
     auto graphInfo = graphsInfo_[qnnModelIndex_];
-
-    // directly get qnnInputs and qnnOutputs from graphInfo.outputTensors
-    if (!ioUtil.setupInputAndOutputTensors(&qnnInputs, &qnnOutputs, *graphInfo)) {
-        MLLM_LOG_ERROR("Error in setting up Input and output Tensors for qnnModelIndex_: %d", qnnModelIndex_);
-    }
+    Qnn_Tensor_t *qnnInputs = graphInfo->inputTensors;
+    Qnn_Tensor_t *qnnOutputs = graphInfo->outputTensors;
 
     auto qnnMM = std::static_pointer_cast<QNNMemoryManager>(mem_manager_);
 
     // register input and output tensor to qnn shared buffers
     // must insure the inputs and outputs of mllm graph are the same as the qnn graph
-    // op created io tensors (kvcache, wnop...) should be solved
 #ifdef DEBUGPRINT
     std::cout << "input tensors num:" << graphInfo->numInputTensors << std::endl;
     std::cout << "output tensors num:" << graphInfo->numOutputTensors << std::endl;
 #endif
 
     for (int i = 0; i < graphInfo->numInputTensors; i++) {
+        qnnInputs[i].v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
         qnnMM->registerQnnTensor((*currentInputBuffers)[i], qnnInputs[i]);
 #ifdef DEBUGPRINT
         std::cout << "\nregistered input tensor backend staged ptr: " << (void *)(*currentInputBuffers)[i] << std::endl;
@@ -329,6 +321,7 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
 #endif
     }
     for (int i = 0; i < graphInfo->numOutputTensors; i++) {
+        qnnOutputs[i].v1.memType = QNN_TENSORMEMTYPE_MEMHANDLE;
         qnnMM->registerQnnTensor((*currentOutputBuffers)[i], qnnOutputs[i]);
 #ifdef DEBUGPRINT
         std::cout << "\nregistered output tensor backend staged ptr: " << (void *)(*currentOutputBuffers)[i] << std::endl;
@@ -336,41 +329,31 @@ void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_pt
         std::cout << "qnn output tensor scale: " << qnnOutputs[i].v1.quantizeParams.scaleOffsetEncoding.scale << std::endl;
 #endif
     }
-
-    graphInfo->inputTensors = qnnInputs;
-    graphInfo->outputTensors = qnnOutputs;
 }
 
 void QNNBackend::onExecuteStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
     // to support multi-thread, we need local variable.
     // update currentInputBuffers, currentOutputBuffers, qnnModelIndex_
     auto t_qnnModelIndex_ = qnnModelIndexMap_[graphName];
-
     GraphInfo_t *graphInfo = graphsInfo_[t_qnnModelIndex_];
 
-    Qnn_Tensor_t *inputs_ = graphInfo->inputTensors;
-    Qnn_Tensor_t *outputs_ = graphInfo->outputTensors;
-
-    Qnn_ErrorHandle_t executeStatus = QNN_GRAPH_NO_ERROR;
 #ifdef DEBUGPRINT
     uint64_t t_start = mllm_time_us();
 #endif
-    executeStatus =
-        mRuntime->qnnInterface.graphExecute(graphInfo->graph,
-                                            inputs_,
+    if (mRuntime->qnnInterface.graphExecute(graphInfo->graph,
+                                            graphInfo->inputTensors,
                                             graphInfo->numInputTensors,
-                                            outputs_,
+                                            graphInfo->outputTensors,
                                             graphInfo->numOutputTensors,
                                             mRuntime->profileHandle,
-                                            nullptr);
+                                            nullptr)
+        != QNN_GRAPH_NO_ERROR) {
+        MLLM_LOG_ERROR_STREAM << "Error in executing graph: " << graphName << std::endl;
+    }
 #ifdef DEBUGPRINT
     uint64_t t_end = mllm_time_us();
     std::cout << "QNN execution time " << (t_end - t_start) / 1000.0F << " ms" << std::endl;
 #endif
-
-    if (QNN_GRAPH_NO_ERROR != executeStatus) {
-        MLLM_LOG_ERROR_STREAM << "Error in executing graph: " << graphName << std::endl;
-    }
 
     if (ProfilingLevel::OFF != m_profilingLevel) {
         extractBackendProfilingInfo(mRuntime->profileHandle);
