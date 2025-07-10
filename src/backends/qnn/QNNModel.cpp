@@ -207,152 +207,22 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version,
                                const char *name,
                                const char *packageName,
                                const char *type,
-                               Qnn_Param_t *params,
-                               uint32_t numOfParams,
-                               const char **inputNames,
-                               uint32_t numOfInputs,
-                               Qnn_Tensor_t *outputTensors,
-                               uint32_t numOfOutputs) {
-    ModelError_t nodeError;
-    Qnn_OpConfig_t opDefinition = QNN_OPCONFIG_INIT;
-    opDefinition.version = version;
-    VALIDATE_OP_CONFIG_VERSION((opDefinition), nodeError);
-
-    // populate Qnn param for node
-    Qnn_Param_t *nodeParams = (Qnn_Param_t *)malloc(numOfParams * sizeof(Qnn_Param_t));
-
-    // populate input tensors for node
-    Qnn_Tensor_t *inputs = (Qnn_Tensor_t *)malloc(numOfInputs * sizeof(Qnn_Tensor_t));
-
-    // populate output tensors of node
-    Qnn_Tensor_t *outputs = (Qnn_Tensor_t *)malloc(numOfOutputs * sizeof(Qnn_Tensor_t));
-
-    if (nodeParams == nullptr || inputs == nullptr || outputs == nullptr) {
-        MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() failed for allocate memory for creating QNN OpConfig for node "
-                              << name;
-        FREE_MEMORY(nodeParams, inputs, outputs);
-        return MODEL_MEMORY_ALLOCATE_ERROR;
-    }
-    uint32_t nodeParamsCounter = 0;
-    for (size_t i = 0; i < numOfParams; i++) {
-        switch (params[i].paramType) {
-        case QNN_PARAMTYPE_TENSOR: {
-            Qnn_Tensor_t &tensor = params[i].tensorParam;
-            // Note: set saveTensor to false as no need to save tensor beyond this
-            //         function call for params
-            nodeError = addTensor(name, &tensor, false);
-            if (nodeError != MODEL_NO_ERROR) {
-                MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() addTensor() failed for tensor param "
-                                      << QNN_TENSOR_GET_NAME(tensor) << " on node " << name;
-                FREE_MEMORY(nodeParams, inputs, outputs);
-                return nodeError;
-            }
-            nodeParams[nodeParamsCounter].paramType = QNN_PARAMTYPE_TENSOR;
-            nodeParams[nodeParamsCounter].name = params[i].name;
-            nodeParams[nodeParamsCounter++].tensorParam = tensor;
-            break;
-        }
-        case QNN_PARAMTYPE_SCALAR: {
-            nodeParams[nodeParamsCounter].paramType = QNN_PARAMTYPE_SCALAR;
-            nodeParams[nodeParamsCounter].name = params[i].name;
-            nodeParams[nodeParamsCounter++].scalarParam = params[i].scalarParam;
-            break;
-        }
-        default: {
-            MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() unknown param type passed for param "
-                                  << params[i].name << " on node " << name;
-            FREE_MEMORY(nodeParams, inputs, outputs);
-            return MODEL_PARAMS_ERROR;
-        }
-        }
-    }
-
-    size_t inputsCounter = 0;
-    for (size_t j = 0; j < numOfInputs; j++) {
-        nodeError = getQnnTensor(name, inputNames[j], inputs[inputsCounter++]);
-        if (nodeError != MODEL_NO_ERROR) {
-            MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() getQnnTensor() failed for tensor "
-                                  << inputNames[j] << " on node " << name;
-            FREE_MEMORY(nodeParams, inputs, outputs);
-            return nodeError;
-        }
-    }
-
-    size_t outputsCounter = 0;
-    m_modelOutputTensorMap[name] = {};
-    for (size_t k = 0; k < numOfOutputs; k++) {
-        // create node output tensors first
-        nodeError = addTensor(name, outputTensors[k]);
-        if (nodeError != MODEL_NO_ERROR) {
-            MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() addTensor() failed for tensor "
-                                  << QNN_TENSOR_GET_NAME(outputTensors[k]) << " on node " << name;
-            FREE_MEMORY(nodeParams, inputs, outputs);
-            return nodeError;
-        }
-        const char *outTensorName = QNN_TENSOR_GET_NAME(outputTensors[k]);
-        m_modelOutputTensorMap[name].push_back(outTensorName);
-        nodeError = getQnnTensor(name, outTensorName, outputs[outputsCounter++]);
-        if (nodeError != MODEL_NO_ERROR) {
-            MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() getQnnTensor() failed for tensor "
-                                  << outTensorName << " on node " << name;
-            FREE_MEMORY(nodeParams, inputs, outputs);
-            return nodeError;
-        }
-    }
-
-    // define and add node to graph
-    QNN_OP_CFG_SET_NAME(opDefinition, name);
-    QNN_OP_CFG_SET_PACKAGE_NAME(opDefinition, packageName);
-    QNN_OP_CFG_SET_TYPE_NAME(opDefinition, type);
-    QNN_OP_CFG_SET_PARAMS(opDefinition, numOfParams, nodeParams);
-    QNN_OP_CFG_SET_INPUTS(opDefinition, numOfInputs, inputs);
-    QNN_OP_CFG_SET_OUTPUTS(opDefinition, numOfOutputs, outputs);
-
-    if (m_doNodeValidations) {
-        auto validationStatus = m_qnnInterface.backendValidateOpConfig(m_backendHandle, opDefinition);
-        if (validationStatus == QNN_BACKEND_ERROR_NOT_SUPPORTED) {
-            MLLM_LOG_DEBUG("QnnModel::addNode() validation API not supported.");
-        } else if (validationStatus != QNN_SUCCESS) {
-            MLLM_LOG_ERROR("QnnModel::addNode() validating node %s failed.", name);
-            FREE_MEMORY(nodeParams, inputs, outputs);
-            return MODEL_GRAPH_ERROR;
-        }
-    }
-
-    if (m_qnnInterface.graphAddNode(m_graph, opDefinition) != QNN_GRAPH_NO_ERROR) {
-        MLLM_LOG_ERROR("QnnModel::addNode() adding node %s failed.", name);
-        FREE_MEMORY(nodeParams, inputs, outputs);
-        return MODEL_GRAPH_ERROR;
-    }
-
-    FREE_MEMORY(nodeParams, inputs, outputs);
-    return MODEL_NO_ERROR;
-}
-
-// overload for string tensorName
-ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version,
-                               const char *name,
-                               const char *packageName,
-                               const char *type,
-                               Qnn_Param_t *params,
-                               uint32_t numOfParams,
+                               std::vector<Qnn_Param_t> &params,
                                std::vector<std::string> inputNames,
-                               uint32_t numOfInputs,
-                               Qnn_Tensor_t *outputTensors,
-                               uint32_t numOfOutputs) {
+                               std::vector<Qnn_Tensor_t> &outputTensors) {
     ModelError_t nodeError;
     Qnn_OpConfig_t opDefinition = QNN_OPCONFIG_INIT;
     opDefinition.version = version;
     VALIDATE_OP_CONFIG_VERSION((opDefinition), nodeError);
 
     // populate Qnn param for node
-    Qnn_Param_t *nodeParams = (Qnn_Param_t *)malloc(numOfParams * sizeof(Qnn_Param_t));
+    Qnn_Param_t *nodeParams = (Qnn_Param_t *)malloc(params.size() * sizeof(Qnn_Param_t));
 
     // populate input tensors for node
-    Qnn_Tensor_t *inputs = (Qnn_Tensor_t *)malloc(numOfInputs * sizeof(Qnn_Tensor_t));
+    Qnn_Tensor_t *inputs = (Qnn_Tensor_t *)malloc(inputNames.size() * sizeof(Qnn_Tensor_t));
 
     // populate output tensors of node
-    Qnn_Tensor_t *outputs = (Qnn_Tensor_t *)malloc(numOfOutputs * sizeof(Qnn_Tensor_t));
+    Qnn_Tensor_t *outputs = (Qnn_Tensor_t *)malloc(outputTensors.size() * sizeof(Qnn_Tensor_t));
 
     if (nodeParams == nullptr || inputs == nullptr || outputs == nullptr) {
         MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() failed for allocate memory for creating QNN OpConfig for node "
@@ -361,7 +231,7 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version,
         return MODEL_MEMORY_ALLOCATE_ERROR;
     }
     uint32_t nodeParamsCounter = 0;
-    for (size_t i = 0; i < numOfParams; i++) {
+    for (size_t i = 0; i < params.size(); i++) {
         switch (params[i].paramType) {
         case QNN_PARAMTYPE_TENSOR: {
             Qnn_Tensor_t &tensor = params[i].tensorParam;
@@ -395,7 +265,7 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version,
     }
 
     size_t inputsCounter = 0;
-    for (size_t j = 0; j < numOfInputs; j++) {
+    for (size_t j = 0; j < inputNames.size(); j++) {
         nodeError = getQnnTensor(name, inputNames[j], inputs[inputsCounter++]);
         if (nodeError != MODEL_NO_ERROR) {
             MLLM_LOG_ERROR_STREAM << "QnnModel::addNode() getQnnTensor() failed for tensor "
@@ -407,7 +277,7 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version,
 
     size_t outputsCounter = 0;
     m_modelOutputTensorMap[name] = {};
-    for (size_t k = 0; k < numOfOutputs; k++) {
+    for (size_t k = 0; k < outputTensors.size(); k++) {
         // create node output tensors first
         nodeError = addTensor(name, outputTensors[k]);
         if (nodeError != MODEL_NO_ERROR) {
@@ -431,9 +301,9 @@ ModelError_t QNNModel::addNode(Qnn_OpConfigVersion_t version,
     QNN_OP_CFG_SET_NAME(opDefinition, name);
     QNN_OP_CFG_SET_PACKAGE_NAME(opDefinition, packageName);
     QNN_OP_CFG_SET_TYPE_NAME(opDefinition, type);
-    QNN_OP_CFG_SET_PARAMS(opDefinition, numOfParams, nodeParams);
-    QNN_OP_CFG_SET_INPUTS(opDefinition, numOfInputs, inputs);
-    QNN_OP_CFG_SET_OUTPUTS(opDefinition, numOfOutputs, outputs);
+    QNN_OP_CFG_SET_PARAMS(opDefinition, params.size(), nodeParams);
+    QNN_OP_CFG_SET_INPUTS(opDefinition, inputNames.size(), inputs);
+    QNN_OP_CFG_SET_OUTPUTS(opDefinition, outputTensors.size(), outputs);
 
     if (m_doNodeValidations) {
         auto validationStatus = m_qnnInterface.backendValidateOpConfig(m_backendHandle, opDefinition);
@@ -466,7 +336,11 @@ ModelError_t QNNModel::freeCachedTensors() {
          tensorIt != m_modelTensorsMap.end();) {
         Qnn_Tensor_t &tensor = tensorIt->second;
         if (QNN_TENSOR_GET_TYPE(tensor) != QNN_TENSOR_TYPE_APP_WRITE && QNN_TENSOR_GET_TYPE(tensor) != QNN_TENSOR_TYPE_APP_READ) {
-            CALL_QNN(freeQnnTensor(tensor));
+            if (!freeQnnTensor(tensor)) {
+                MLLM_LOG_ERROR_STREAM << "QnnModel::freeCachedTensors() failed to free tensor "
+                                      << QNN_TENSOR_GET_NAME(tensor) << ".";
+                err = MODEL_TENSOR_ERROR;
+            }
             tensorIt = m_modelTensorsMap.erase(tensorIt);
         } else {
             tensorIt++;
@@ -497,67 +371,6 @@ size_t memscpy(void *dst, size_t dstSize, const void *src, size_t copySize) {
     memcpy(dst, src, minSize);
 
     return minSize;
-}
-
-ModelError_t getGraphInfoFromModels(QNNModel *models,
-                                    uint32_t numModels,
-                                    GraphInfoPtr_t **graphsInfo) {
-    ModelError_t err = MODEL_NO_ERROR;
-    if (models == nullptr || graphsInfo == nullptr || numModels <= 0) {
-        MLLM_LOG_ERROR(
-            "getGraphInfoFromModels() models and graphsInfo uninitialized or number of models is "
-            "<= 0.");
-        return MODEL_GRAPH_ERROR;
-    }
-
-    *graphsInfo = (GraphInfo_t **)malloc(numModels * sizeof(GraphInfo_t *));
-    if (*graphsInfo == nullptr) {
-        MLLM_LOG_ERROR("getGraphInfoFromModels() graphsInfo malloc returned nullptr.");
-        return MODEL_GRAPH_ERROR;
-    }
-
-    GraphInfo_t *graphArr = (GraphInfo_t *)malloc(numModels * sizeof(GraphInfo_t));
-    if (graphArr == nullptr) {
-        MLLM_LOG_ERROR("getGraphInfoFromModels() graphArr malloc returned nullptr.");
-        return MODEL_GRAPH_ERROR;
-    }
-
-    for (uint32_t i = 0; i < numModels; i++) {
-        QNNModel &model = models[i];
-        graphArr[i].graph = model.getQnnGraph();
-        graphArr[i].graphName =
-            strnDup(model.getQnnGraphName().c_str(), model.getQnnGraphName().size());
-        if (graphArr[i].graphName == nullptr) {
-            MLLM_LOG_ERROR("getGraphInfoFromModels() failed to construct graphName. Received nullptr.");
-            return MODEL_GRAPH_ERROR;
-        }
-
-        // allocate and add graph input/output TensorsWrapper. Note: no need to make deep copies of
-        // the tensor's pointer members as they are already allocated on heap in the addTensor
-        // function call.
-        std::vector<Qnn_Tensor_t> graphInputTensors = model.getGraphInputTensors();
-        size_t numInputTensors = graphInputTensors.size();
-        size_t inputTensorsSize = numInputTensors * sizeof(Qnn_Tensor_t);
-        graphArr[i].inputTensors = (Qnn_Tensor_t *)malloc(inputTensorsSize);
-        memscpy(graphArr[i].inputTensors, inputTensorsSize, graphInputTensors.data(), inputTensorsSize);
-        graphArr[i].numInputTensors = (uint32_t)numInputTensors;
-        // allocate and add graph outputTensors
-        std::vector<Qnn_Tensor_t> graphOutputTensors = model.getGraphOutputTensors();
-        size_t numOutputTensors = graphOutputTensors.size();
-        size_t outputTensorsSize = numOutputTensors * sizeof(Qnn_Tensor_t);
-        graphArr[i].outputTensors = (Qnn_Tensor_t *)malloc(outputTensorsSize);
-        memscpy(
-            graphArr[i].outputTensors, outputTensorsSize, graphOutputTensors.data(), outputTensorsSize);
-        graphArr[i].numOutputTensors = (uint32_t)numOutputTensors;
-
-        // have return object point to the populated graph struct
-        (*graphsInfo)[i] = graphArr + i;
-
-        // graph composition is complete by this stage, free if any cached tensors remaining
-        CALL_QNN(model.freeCachedTensors());
-    }
-
-    return err;
 }
 
 ModelError_t getSingleGraphInfoFromModel(QNNModel &model, GraphInfoPtr_t *graphInfoPtr) {

@@ -123,18 +123,12 @@ public:
      * tensorParam case. The tensor will be created within the function and the data will be retrieved
      * from the binary blob to set the tensor data.
      *
-     * @param[in] numOfParams The number of elements in above params object
-     *
      * @param[in] inputNames List of tensor names for inputs to node. Note: the corresponding qnn
      * tensor objects must be created within this instance prior to being listed as input to a node
-     *
-     * @param[in] numOfInputs The number of elements in above inputNames object
      *
      * @param[in] outputTensors List of Qnn_Tensor_t objects for outputs from node.
      *                           Note1: the corresponding qnn tensor objects will be created in
      * function and must not already exist. Note2: the output names must be unique per graph
-     *
-     * @param[in] numOfOutputs The number of elements in above outputs object
      *
      * @return Error code
      *
@@ -143,23 +137,9 @@ public:
                          const char *name,
                          const char *packageName,
                          const char *type,
-                         Qnn_Param_t *params,
-                         uint32_t numOfParams,
-                         const char **inputNames,
-                         uint32_t numOfInputs,
-                         Qnn_Tensor_t *outputTensors,
-                         uint32_t numOfOutputs);
-    // overload for vector of inputNames
-    ModelError_t addNode(Qnn_OpConfigVersion_t version,
-                         const char *name,
-                         const char *packageName,
-                         const char *type,
-                         Qnn_Param_t *params,
-                         uint32_t numOfParams,
+                         std::vector<Qnn_Param_t> &params,
                          std::vector<std::string> inputNames,
-                         uint32_t numOfInputs,
-                         Qnn_Tensor_t *outputTensors,
-                         uint32_t numOfOutputs);
+                         std::vector<Qnn_Tensor_t> &outputTensors);
 
     /**
      * @brief A wrapper function to return model's graph
@@ -254,26 +234,12 @@ private:
  * @brief A helper function to convert QnnModel objects to Graph struct for qnn_model c
  * interface
  * @param[in] models List of QnnModel objects
- * @param[in] numModels The number of elements in above models object
  *
- * @param[out] graphsInfo The corresponding array of Graph object for each of the above model
- * objects(note: this function will malloc memory needed to store the struct objects. Following free
- * shall be invoked when objects are no longer needed.
+ * @param[out] graphInfoPtr The corresponding Graph object for the model
  *
  * @return Error code
  *
  */
-ModelError_t getGraphInfoFromModels(QNNModel *models,
-                                    uint32_t numModels,
-                                    GraphInfoPtr_t **graphsInfo);
 ModelError_t getSingleGraphInfoFromModel(QNNModel &model, GraphInfoPtr_t *graphInfoPtr);
 
-/**
- * @brief A helper function to free memory malloced for communicating the Graph for a model(s)
- * @param[in] graphsInfo Pointer pointing to location of graph objects
- * @param[in] numGraphs The number of graph objects the above pointer is pointing to
- *
- * @return Error code
- *
- */
 } // namespace mllm

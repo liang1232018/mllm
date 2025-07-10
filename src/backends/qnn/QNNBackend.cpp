@@ -392,21 +392,14 @@ void QNNBackend::graphAddNode(string name,
         return;
     }
 
-    Qnn_Param_t *paramsPtr = nullptr;
-    if (!params.empty()) {
-        paramsPtr = params.data();
-    }
     CALL_QNN(qnnModels_[qnnModelIndex_].addNode(
-        QNN_OPCONFIG_VERSION_1,  // Op_Config_t Version
-        name.c_str(),            // Node Name
-        packageName.c_str(),     // Package Name
-        nodeType.c_str(),        // Qnn Node Type
-        paramsPtr,               // Node Params
-        params.size(),           // Num Node Params
-        inputTensorNames,        // Input Tensor Names
-        inputTensorNames.size(), // Num Input Tensor Names
-        outputTensors.data(),    // Output Tensors
-        outputTensors.size()     // Num Output Tensors
+        QNN_OPCONFIG_VERSION_1, // Op_Config_t Version
+        name.c_str(),           // Node Name
+        packageName.c_str(),    // Package Name
+        nodeType.c_str(),       // Qnn Node Type
+        params,                 // Node Params
+        inputTensorNames,       // Input Tensor Names
+        outputTensors           // Output Tensors
         ));
 }
 
