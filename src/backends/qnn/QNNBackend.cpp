@@ -111,6 +111,17 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
         exit(1);
     }
 
+    // check QNN capability
+    if (mRuntime->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_SPARSITY) == QNN_PROPERTY_SUPPORTED) {
+        MLLM_LOG_INFO("QNN backend supports tensor sparsity");
+    }
+    if (mRuntime->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_DYNAMIC_DIMENSIONS) == QNN_PROPERTY_SUPPORTED) {
+        MLLM_LOG_INFO("QNN backend supports dynamic dimensions");
+    }
+    if (mRuntime->qnnInterface.propertyHasCapability(QNN_PROPERTY_GRAPH_SUPPORT_EARLY_TERMINATION) == QNN_PROPERTY_SUPPORTED) {
+        MLLM_LOG_INFO("QNN backend supports early termination");
+    }
+
     // register ops
     this->registerOps();
 
