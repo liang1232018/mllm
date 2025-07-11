@@ -206,16 +206,16 @@ void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_
     // threadConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
     // threadConfig.customConfig = &htpThreadConfig;
 
-    // // supported in 2.34
-    // QnnHtpGraph_CustomConfig_t slcConfigInfo;
-    // slcConfigInfo.option = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
-    // slcConfigInfo.optimizationOption.type = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_ENABLE_SLC_ALLOCATOR;
-    // slcConfigInfo.optimizationOption.floatValue = 1;
-    // QnnGraph_Config_t graphConfig;
-    // graphConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-    // graphConfig.customConfig = &slcConfigInfo;
+    // supported in 2.34
+    QnnHtpGraph_CustomConfig_t slcConfigInfo;
+    slcConfigInfo.option = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
+    slcConfigInfo.optimizationOption.type = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_ENABLE_SLC_ALLOCATOR;
+    slcConfigInfo.optimizationOption.floatValue = 1;
+    QnnGraph_Config_t slcConfig;
+    slcConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    slcConfig.customConfig = &slcConfigInfo;
 
-    const QnnGraph_Config_t *graphConfigList[] = {&vtcmConfig, NULL};
+    const QnnGraph_Config_t *graphConfigList[] = {&vtcmConfig, &slcConfig, NULL};
 
     ModelError_t err = MODEL_NO_ERROR;
     if ((err = qnnModels_[qnnModelIndex_].initialize(mRuntime->backendHandle,
