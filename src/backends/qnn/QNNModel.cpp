@@ -67,10 +67,6 @@ ModelError_t QNNModel::initialize(const Qnn_BackendHandle_t &backendHandle,
     return MODEL_NO_ERROR;
 }
 
-void QNNModel::setInitFromCache() {
-    isFromCache = true;
-}
-
 ModelError_t QNNModel::addTensor(const char *nodeName, Qnn_Tensor_t *tensor, bool saveTensor) {
     ModelError_t err;
     if (!tensor) {
@@ -142,12 +138,10 @@ ModelError_t QNNModel::addTensor(const char *nodeName, Qnn_Tensor_t *tensor, boo
         QNN_TENSOR_SET_TYPE(tensor, QNN_TENSOR_TYPE_APP_READ);
     }
 
-    if (!isFromCache) {
-        if (m_qnnInterface.tensorCreateGraphTensor(m_graph, tensor) != QNN_TENSOR_NO_ERROR) {
-            MLLM_LOG_ERROR_STREAM << "QnnModel::addTensor() Creating tensor for node:"
-                                  << nodeName << "tensorName:" << QNN_TENSOR_GET_NAME(tensor);
-            return MODEL_TENSOR_ERROR;
-        }
+    if (m_qnnInterface.tensorCreateGraphTensor(m_graph, tensor) != QNN_TENSOR_NO_ERROR) {
+        MLLM_LOG_ERROR_STREAM << "QnnModel::addTensor() Creating tensor for node:"
+                              << nodeName << "tensorName:" << QNN_TENSOR_GET_NAME(tensor);
+        return MODEL_TENSOR_ERROR;
     }
 
     if (saveTensor) {
@@ -175,21 +169,6 @@ ModelError_t QNNModel::addTensor(const char *nodeName, Qnn_Tensor_t tensor, bool
     return addTensor(nodeName, &tensor, saveTensor);
 }
 
-ModelError_t QNNModel::getQnnTensor(const char *&nodeName,
-                                    const char *&tensorName,
-                                    Qnn_Tensor_t &tensor) {
-    std::string mapEntry = std::string(tensorName);
-    if (m_modelTensorsMap.find(tensorName) == m_modelTensorsMap.end()) {
-        MLLM_LOG_ERROR_STREAM << "QnnModel::getQnnTensor() tensor "
-                              << mapEntry << " not found on node " << nodeName;
-        return MODEL_TENSOR_ERROR;
-    }
-    tensor = m_modelTensorsMap[mapEntry];
-
-    return MODEL_NO_ERROR;
-}
-
-// overload for string tensorName
 ModelError_t QNNModel::getQnnTensor(std::string nodeName,
                                     std::string tensorName,
                                     Qnn_Tensor_t &tensor) {
@@ -346,20 +325,6 @@ ModelError_t QNNModel::freeCachedTensors() {
             tensorIt++;
         }
     }
-    return err;
-}
-
-ModelError_t QNNModel::finalize(Qnn_ProfileHandle_t profile, Qnn_SignalHandle_t signal) {
-    ModelError_t err;
-
-    // finalize the graph
-    if (m_qnnInterface.graphFinalize(m_graph, profile, signal) != QNN_GRAPH_NO_ERROR) {
-        MLLM_LOG_ERROR("QnnModel::finalize() finalizing graph failed.");
-        return MODEL_GRAPH_ERROR;
-    }
-
-    CALL_QNN(freeCachedTensors());
-
     return err;
 }
 

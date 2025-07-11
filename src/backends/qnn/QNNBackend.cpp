@@ -112,6 +112,11 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
     }
 
     // check QNN capability
+    char *backendBuildId{nullptr};
+    if (QNN_SUCCESS != mRuntime->qnnInterface.backendGetBuildId((const char **)&backendBuildId)) {
+        MLLM_LOG_ERROR_LEGACY("Unable to get build Id from the backend.");
+    }
+    MLLM_LOG_INFO_STREAM << "QNN Backend Build Id: " << (backendBuildId == nullptr ? "" : backendBuildId);
     if (mRuntime->qnnInterface.propertyHasCapability(QNN_PROPERTY_TENSOR_SUPPORT_SPARSITY) == QNN_PROPERTY_SUPPORTED) {
         MLLM_LOG_INFO("QNN backend supports tensor sparsity");
     }
@@ -131,7 +136,13 @@ QNNBackend::QNNBackend(shared_ptr<MemoryManager> mm) :
         contextStatus = mRuntime->createContext(m_context, nullptr);
     } else {
         contextStatus = mRuntime->retrieveContext(m_context, graphsInfo_, nullptr);
-        isFromCache = true; // set the flag to indicate that the context is loaded from cache
+        // set the flag to indicate that the context is loaded from cache
+        isFromCache = true;
+        // fill qnnModelIndexMap_ info according to graphsInfo_
+        for (size_t i = 0; i < graphsInfo_.size(); i++) {
+            auto graphName = graphsInfo_[i]->graphName;
+            qnnModelIndexMap_.insert(std::make_pair(graphName, i));
+        }
     }
     if (!contextStatus) {
         MLLM_LOG_ERROR_STREAM << "Failed to create QNN context\n";
@@ -159,42 +170,62 @@ QNNBackend::~QNNBackend() {
 }
 
 void QNNBackend::onSetUpStart(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
-    // create a new graph
+    // if the graph already exists, just update the qnnModelIndex_ and set the input and output buffers
+    if (qnnModelIndexMap_.find(graphName) != qnnModelIndexMap_.end()) {
+        qnnModelIndex_ = qnnModelIndexMap_[graphName];
+
+        inputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>(inputs.size())));
+        outputBufferMap.insert(std::make_pair(graphName, std::vector<uint8_t *>()));
+
+        currentInputBuffers = &inputBufferMap[graphName];
+        currentOutputBuffers = &outputBufferMap[graphName];
+
+        // push input tensors to the buffer list
+        for (int i = 0; i < inputs.size(); i++) {
+            (*currentInputBuffers)[i] = inputs[i]->hostPtr<uint8_t>();
+        }
+        return;
+    }
+    // else, create a QNNModel to build graph
     qnnModelIndex_ = qnnModels_.size();
     qnnModelIndexMap_.insert(std::make_pair(graphName, qnnModelIndex_));
     qnnModels_.push_back(QNNModel());
 
     // initialize qnn graph info, set graph info, graph count
-    // NOTE: currently not using it
-    QnnHtpGraph_CustomConfig_t customConfig;
-    // customConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_NUM_HVX_THREADS;
-    // customConfig.numHvxThreads = 4; // set a number. MAX = number of HVX HW blocks for that SoC
-    customConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
-    customConfig.vtcmSizeInMB = 8;
+    QnnHtpGraph_CustomConfig_t vtcmConfigInfo;
+    vtcmConfigInfo.option = QNN_HTP_GRAPH_CONFIG_OPTION_VTCM_SIZE;
+    vtcmConfigInfo.vtcmSizeInMB = 8;
+    QnnGraph_Config_t vtcmConfig;
+    vtcmConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    vtcmConfig.customConfig = &vtcmConfigInfo;
 
-    QnnGraph_Config_t graphConfig;
-    graphConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
-    graphConfig.customConfig = &customConfig;
+    // QnnHtpGraph_CustomConfig_t htpThreadConfig;
+    // htpThreadConfig.option = QNN_HTP_GRAPH_CONFIG_OPTION_NUM_HVX_THREADS;
+    // htpThreadConfig.numHvxThreads = 6; // set a number. MAX = number of HVX HW blocks for that SoC
+    // QnnGraph_Config_t threadConfig;
+    // threadConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    // threadConfig.customConfig = &htpThreadConfig;
 
-    const QnnGraph_Config_t *graphConfigList[] = {&graphConfig, NULL};
+    // // supported in 2.34
+    // QnnHtpGraph_CustomConfig_t slcConfigInfo;
+    // slcConfigInfo.option = QNN_HTP_GRAPH_CONFIG_OPTION_OPTIMIZATION;
+    // slcConfigInfo.optimizationOption.type = QNN_HTP_GRAPH_OPTIMIZATION_TYPE_ENABLE_SLC_ALLOCATOR;
+    // slcConfigInfo.optimizationOption.floatValue = 1;
+    // QnnGraph_Config_t graphConfig;
+    // graphConfig.option = QNN_GRAPH_CONFIG_OPTION_CUSTOM;
+    // graphConfig.customConfig = &slcConfigInfo;
+
+    const QnnGraph_Config_t *graphConfigList[] = {&vtcmConfig, NULL};
 
     ModelError_t err = MODEL_NO_ERROR;
-
-    if (!isFromCache) {
-        err = qnnModels_[qnnModelIndex_].initialize(mRuntime->backendHandle,
-                                                    mRuntime->qnnInterface,
-                                                    m_context,
-                                                    graphName.c_str(),
-                                                    m_debug,
-                                                    DO_GRAPH_NODE_VALIDATIONS,
-                                                    graphConfigList);
-    } else {
-        // set init from cache, the input and output tensor info still needs the QnnModel to maintain
-        // setting this is to avoid the tensor creation in the qnn graph
-        qnnModels_[qnnModelIndex_].setInitFromCache();
-    }
-
-    if (err != MODEL_NO_ERROR) {
+    if ((err = qnnModels_[qnnModelIndex_].initialize(mRuntime->backendHandle,
+                                                     mRuntime->qnnInterface,
+                                                     m_context,
+                                                     graphName.c_str(),
+                                                     m_debug,
+                                                     DO_GRAPH_NODE_VALIDATIONS,
+                                                     graphConfigList))
+        != MODEL_NO_ERROR) {
         MLLM_LOG_ERROR_STREAM << "QNNBackend graph initialization failed for graph: " << graphName
                               << " with error code: " << static_cast<int>(err) << std::endl;
         exit(1);
@@ -279,6 +310,7 @@ bool QNNBackend::graphFinilize() {
     if (QNN_GRAPH_NO_ERROR != mRuntime->qnnInterface.graphFinalize(graphInfo->graph, mRuntime->profileHandle, nullptr)) {
         return false;
     }
+    CALL_QNN(qnnModels_[qnnModelIndex_].freeCachedTensors());
     if (ProfilingLevel::OFF != m_profilingLevel) {
         extractBackendProfilingInfo(mRuntime->profileHandle);
     }
@@ -287,6 +319,7 @@ bool QNNBackend::graphFinilize() {
     return true;
 }
 
+// finalize graph if needed, get qnn inputs and outputs tensors from graphInfo, register shared memory handles
 void QNNBackend::onSetUpEnd(vector<shared_ptr<Tensor>> &inputs, vector<shared_ptr<Tensor>> &outputs, string graphName) {
     // online graph building, finalize graph
     if (!isFromCache) {
@@ -366,15 +399,10 @@ void QNNBackend::graphAddNode(string name,
                               std::vector<Qnn_Tensor_t> outputTensors,
                               std::vector<Qnn_Param_t> params,
                               string packageName) {
+    // graph has been built
     if (isFromCache) {
-        for (auto &qnnTensor : outputTensors) {
-            if (qnnTensor.v1.type == QNN_TENSOR_TYPE_APP_READ) {
-                qnnModels_[qnnModelIndex_].addTensor(qnnTensor.v1.name, qnnTensor);
-            }
-        }
         return;
     }
-
     CALL_QNN(qnnModels_[qnnModelIndex_].addNode(
         QNN_OPCONFIG_VERSION_1, // Op_Config_t Version
         name.c_str(),           // Node Name
@@ -387,7 +415,8 @@ void QNNBackend::graphAddNode(string name,
 }
 
 void QNNBackend::modelAddTensor(std::string nodeName, Qnn_Tensor_t tensor) {
-    if (isFromCache && tensor.v1.type != QNN_TENSOR_TYPE_APP_READ) {
+    // graph has been built
+    if (isFromCache) {
         return;
     }
     CALL_QNN(qnnModels_[qnnModelIndex_].addTensor(nodeName.c_str(), tensor));

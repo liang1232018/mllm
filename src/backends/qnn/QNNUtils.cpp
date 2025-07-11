@@ -9,7 +9,7 @@ namespace mllm {
 QnnInterfaceGetProvidersFn_t QnnInterface_getProviders = nullptr;
 
 bool loadQNNSymbol() {
-    MLLM_LOG_INFO_STREAM << "QNN Backend: libQnnHtp.so";
+    MLLM_LOG_INFO_STREAM << "QNN Backend Lib: libQnnHtp.so";
     void *qnnLibHandle = nullptr;
     qnnLibHandle = dlopen("libQnnHtp.so", RTLD_NOW | RTLD_LOCAL);
     const char *errorOpen = dlerror();

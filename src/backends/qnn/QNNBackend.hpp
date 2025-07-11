@@ -166,10 +166,9 @@ private:
 
     void extractProfilingEvent(QnnProfile_EventId_t profileEventId);
 
-    std::map<std::string, std::vector<uint8_t *>> inputBufferMap;
-    std::vector<uint8_t *> *currentInputBuffers;
-    std::map<std::string, std::vector<uint8_t *>> outputBufferMap;
-    std::vector<uint8_t *> *currentOutputBuffers;
+    std::map<std::string, std::vector<uint8_t *>> inputBufferMap, outputBufferMap;
+    // still use this, as in Express frontend, mllm inputs and outputs num may not match
+    std::vector<uint8_t *> *currentInputBuffers, *currentOutputBuffers;
 
     std::map<OpType, QNNBackend::Creator *> map_creator_;
 
