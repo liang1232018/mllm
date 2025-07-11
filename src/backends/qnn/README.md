@@ -7,7 +7,7 @@ This section is basically following the QNN documentation, for more details, see
 The QNN backend relies on the Qualcomm QNN SDK and Hexagon SDK to compile QNN Backends and LLM-specific operators. The QNN SDK can be downloaded [here](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk). The Hexagon SDK can be downloaded using [QPM](https://qpm.qualcomm.com/). The compiling environment only supports Linux now.
 
 Version requirements:
-* QNN: [Linux v2.20+](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
+* QNN: [Linux v2.34+](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
 * Hexagon SDK: [Linux 5.x](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
 
 **NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/2.31.0.250130` to `src/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `src/backends/qnn/sdk`.
@@ -77,4 +77,27 @@ Give me a short introduction to large language model.<|im_end|>
 <|im_start|>assistant
 
 [A] The large language model is a type of artificial intelligence that is designed to generate human-like text based on the input it receives It is typically trained on large datasets of text, such as books, articles, and web pages, and uses statistical models to learn patterns and relationships in the data The goal of a large language model is to generate text that is coherent
+```
+
+## Custom Op Package Development
+
+In QNN, you can develop your own Op package to support custom operators. The Op package is a collection of QNN operators that can be used in the QNN backend.
+
+If you want to develop your own QNN Op package, you can refer to the [QNN documentation](https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/op_package_gen_example.html) for more details. The package name in this project is `LLaMAPackage`.
+
+Generally, a QNN Op should implement an HVX version and a reference version. You can refer to 'Qualcomm Hexagon V73 HVX Programmer's Reference Manual' on Qualcomm's official website for more details about the HVX programming. 
+
+To enable LSP for HVX, you can set clangd path to `$HEXAGON_SDK_ROOT/tools/HEXAGON_Tools/8.7.06/Tools/bin/hexagon-clangd` in your `.vscode/settings.json` file.
+
+```json
+{
+  "clangd.path": "$HEXAGON_SDK_ROOT/tools/HEXAGON_Tools/8.7.06/Tools/bin/hexagon-clangd"
+}
+```
+
+Then you need to generate the `compile_commands.json` file for the Op package, you can use the following command:
+
+```bash
+cd mllm/src/backends/qnn/LLaMAOpPackageHtp/LLaMAPackage/
+compiledb make htp_v75 -C .
 ```
