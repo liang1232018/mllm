@@ -12,20 +12,19 @@ file(GLOB MLLM_QNN_SRC
     
 )
 
-if (MLLM_OPENMP)
-find_package(OpenMP REQUIRED)
-if(OpenMP_FOUND)
-    message(STATUS "found openmp")
-    set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} ${OPENMP_C_FLAGS})
-    set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} ${OPENMP_CXX_FLAGS})
-else()
-    message(FATAL_ERROR "openmp not found!")
-endif()
-endif()
+# if (MLLM_OPENMP)
+# find_package(OpenMP REQUIRED)
+# if(OpenMP_FOUND)
+#     message(STATUS "found openmp")
+#     set(CMAKE_C_FLAGS ${CMAKE_C_FLAGS} ${OPENMP_C_FLAGS})
+#     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} ${OPENMP_CXX_FLAGS})
+# else()
+#     message(FATAL_ERROR "openmp not found!")
+# endif()
+# endif()
 
 # import android ndk cmake toolchain
 if (ARM)
-    include(${ANDROID_NDK}/build/cmake/android.toolchain.cmake)
     add_definitions(-DQNN_ARM)
     message(STATUS "QNN ARM detected")
 endif()
@@ -37,16 +36,16 @@ add_library(
     ${MLLM_QNN_SRC}
 )
 
-if(OpenMP_FOUND)
-    message(STATUS "found openmp")
-    if(ARM AND NOT APK)
-        message(STATUS "[ARM]  found openmp")
-        target_compile_options(MLLM_QNN PRIVATE -fopenmp)
-        target_link_libraries(MLLM_QNN PUBLIC -fopenmp -static-openmp)
-    else()
-    target_link_libraries(MLLM_QNN
-            PUBLIC
-            OpenMP::OpenMP_CXX )
-    endif()
-endif()
+# if(OpenMP_FOUND)
+#     message(STATUS "found openmp")
+#     if(ARM AND NOT APK)
+#         message(STATUS "[ARM]  found openmp")
+#         target_compile_options(MLLM_QNN PRIVATE -fopenmp)
+#         target_link_libraries(MLLM_QNN PUBLIC -fopenmp -static-openmp)
+#     else()
+#     target_link_libraries(MLLM_QNN
+#             PUBLIC
+#             OpenMP::OpenMP_CXX )
+#     endif()
+# endif()
 target_link_libraries(MLLM_QNN PUBLIC fmt::fmt-header-only)
