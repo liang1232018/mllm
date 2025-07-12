@@ -708,7 +708,7 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         for (const auto &layer_next_name : layer_next_names) {
             string next_name;
             // NOTE: QNN is using CPU ViT
-            if (Layer::use_layername_2_tensorname || (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos)) {
+            if (Layer::use_layername_2_tensorname) {
                 if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
                     if (layer->param_["type"] == KVCACHE) {
                         Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
@@ -717,6 +717,8 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
                         Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
                     }
                 }
+                next_name = Layer::layername_2_tensorname[layer_next_name];
+            } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
                 next_name = Layer::layername_2_tensorname[layer_next_name];
             } else {
                 next_name = layer_next_name;
@@ -731,10 +733,23 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
         if (module->doLoad) {
             vector<Tensor> output_result = {};
             for (const auto &layer_next_name : layer_next_names) {
+                string next_name;
                 // NOTE: QNN is using CPU ViT
-                string next_name = Layer::use_layername_2_tensorname ?
-                                       Layer::layername_2_tensorname[layer_next_name] :
-                                       (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+                if (Layer::use_layername_2_tensorname) {
+                    if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                        if (layer->param_["type"] == KVCACHE) {
+                            Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                            init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                        } else {
+                            Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                        }
+                    }
+                    next_name = Layer::layername_2_tensorname[layer_next_name];
+                } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
+                    next_name = Layer::layername_2_tensorname[layer_next_name];
+                } else {
+                    next_name = layer_next_name;
+                }
                 output_result.push_back(*activation_tensors[next_name]);
             }
             return output_result;
@@ -764,10 +779,23 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
     }
     vector<shared_ptr<Tensor>> output_tensors = {};
     for (const auto &layer_next_name : layer_next_names) {
+        string next_name;
         // NOTE: QNN is using CPU ViT
-        string next_name = Layer::use_layername_2_tensorname ?
-                               Layer::layername_2_tensorname[layer_next_name] :
-                               (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+        if (Layer::use_layername_2_tensorname) {
+            if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                if (layer->param_["type"] == KVCACHE) {
+                    Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                    init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                } else {
+                    Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+            }
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else {
+            next_name = layer_next_name;
+        }
         output_tensors.push_back(activation_tensors[next_name]);
     }
 #ifdef DEBUGOPTIME
@@ -810,10 +838,23 @@ std::vector<Tensor> QNNBackend::runLayer(Layer *layer, std::vector<Tensor> input
 #endif
     vector<Tensor> output_result = {};
     for (const auto &layer_next_name : layer_next_names) {
+        string next_name;
         // NOTE: QNN is using CPU ViT
-        string next_name = Layer::use_layername_2_tensorname ?
-                               Layer::layername_2_tensorname[layer_next_name] :
-                               (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos ? Layer::layername_2_tensorname[layer_next_name] : layer_next_name);
+        if (Layer::use_layername_2_tensorname) {
+            if (Layer::layername_2_tensorname.find(layer_next_name) == Layer::layername_2_tensorname.end()) {
+                if (layer->param_["type"] == KVCACHE) {
+                    Layer::layername_2_tensorname[layer_next_name] = layer_next_name;
+                    init_reset_KVCache(inputs[0].name(), module, layer->saved_list_idx, Layer::layername_2_tensorname, layer->backend_);
+                } else {
+                    Layer::layername_2_tensorname[layer_next_name] = name_num_to_X(layer_next_name);
+                }
+            }
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else if (Context::Instance().inference_state().getIsCPUViT() && layer_next_name.find("visual") != string::npos) {
+            next_name = Layer::layername_2_tensorname[layer_next_name];
+        } else {
+            next_name = layer_next_name;
+        }
 #ifdef DEBUGSAVETENSOR
         activation_tensors[next_name]->saveNData<float>(layer_next_name);
 #endif
