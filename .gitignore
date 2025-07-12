@@ -2,6 +2,7 @@
 .vscode/
 .idea/
 .cache/
+.DS_Store
 build*/
 build/
 bin/
