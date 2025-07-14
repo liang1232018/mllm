@@ -1,13 +1,13 @@
 #include "Context.hpp"
 #include "Backend.hpp"
+#include "QNNBackend.hpp"
 #include "Trace.hpp"
 #include "Types.hpp"
 #include "backends/cpu/CPUBackend.hpp"
 #include "cmdline.h"
 #include "models/qwen/configuration_qwen.hpp"
-// #include "models/qwen/modeling_qwen_npu.hpp"
-#include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/modeling_qwen_npu_v2.hpp"
+#include "models/qwen/modeling_qwen.hpp"
 #include "models/qwen/tokenization_qwen.hpp"
 #include "processor/PostProcess.hpp"
 #include "Parallel.hpp"
@@ -16,17 +16,23 @@ using namespace mllm;
 
 int main(int argc, char **argv) {
     cmdline::parser cmdParser;
-    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen_vocab.mllm");
-    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen_merges.txt");
-    cmdParser.add<string>("model", 'm', "specify mllm model path", false, "../models/qwen-1.5-1.8b-chat-int8.mllm");
-    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B]", false, "1.8B");
+    cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2.5_vocab.mllm");
+    // "../vocab/qwen_vocab.mllm"
+    cmdParser.add<string>("merge", 'e', "specify mllm merge file path", false, "../vocab/qwen2.5_merges.txt");
+    // "../vocab/qwen_merges.txt"
+    cmdParser.add<string>("qnn-model", 'm', "specify mllm model path", false, "../models/Qwen2.5-1.5B-Instruct_rotated-noshadow.mllm");
+    // "../models/qwen1.5-1.8b-chat-rot-qnn.mllm"
+    cmdParser.add<string>("decoding-model", '\0', "specify mllm model path", false, "../models/Qwen2.5-1.5B-Instruct_rotated-Q40.mllm");
+    // "../models/qwen1.5-1.8b-chat-rot_q4_0.mllm"
+    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B | [1.5B, 1.8B]-rotated]", false, "1.8B-rotated");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
-    string model_path = cmdParser.get<string>("model");
+    string model_path = cmdParser.get<string>("qnn-model");
+    string decoding_model_path = cmdParser.get<string>("decoding-model");
     string model_billion = cmdParser.get<string>("billion");
     int tokens_limit = cmdParser.get<int>("limits");
     const int chunk_size = 128;
@@ -39,12 +45,16 @@ int main(int argc, char **argv) {
     auto model = v2::QWenForCausalLM_NPU(config, chunk_size);
     model.load(model_path);
     auto decoding_model = QWenForCausalLM(config);
-    decoding_model.load("../models/qwen-1.5-1.8b-chat-q4k.mllm");
+    decoding_model.load(decoding_model_path);
 
     string trace_string = " ";
     auto [_, input_tensor] = tokenizer.tokenizePaddingByChunk(trace_string, chunk_size, config.vocab_size);
     Tracer::trace(&model, {input_tensor});
     std::cout << "Trace and Warmup finished" << std::endl;
+
+    if (!std::filesystem::exists("qnn_context.bin")) {
+        Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
+    }
 
     vector<string> in_strs = {
         // " Give me a short introduction to large language model.",

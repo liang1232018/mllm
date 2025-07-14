@@ -98,7 +98,6 @@ if(QNN)
     func_llm_add_executable(main_qwen_npu)
     func_llm_add_executable(demo_phonelm_npu)
     func_llm_add_executable(main_phonelm_npu)
-    func_llm_add_executable(demo_qwen2.5_npu)
     func_llm_add_executable(demo_qwen_pipeline)
 
     # single operator TEST examples
