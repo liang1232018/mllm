@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
     // "../models/qwen1.5-1.8b-chat-rot-qnn.mllm"
     cmdParser.add<string>("decoding-model", '\0', "specify mllm model path", false, "../models/Qwen2.5-1.5B-Instruct_rotated-Q40.mllm");
     // "../models/qwen1.5-1.8b-chat-rot_q4_0.mllm"
-    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B | [1.5B, 1.8B]-rotated]", false, "1.8B-rotated");
+    cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B | [1.5B, 1.8B]-rotated]", false, "1.5B-rotated");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
@@ -131,5 +131,7 @@ int main(int argc, char **argv) {
         Context::Instance().inference_state().setExecutionType(PROMPT);
         Context::Instance().inference_state().toggleSwitching();
         std::cout << "\n";
+
+        decoding_model.profiling("Decoding");
     }
 }
