@@ -3,7 +3,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
+#ifndef __APPLE__
 #include <malloc.h>
+#else // __APPLE__
+#include <malloc/malloc.h>
+#endif
 
 namespace mllm {
 
@@ -30,6 +34,10 @@ void SystemMemoryManager::free(void *ptr) {
     if (ptr != nullptr) {
 #ifdef _WIN32
         if (_msize(((void **)ptr)[-1]) > 0) {
+            ::free(((void **)ptr)[-1]);
+        }
+#elif defined(__APPLE__)
+        if (malloc_size(((void **)ptr)[-1]) > 0) {
             ::free(((void **)ptr)[-1]);
         }
 #else
