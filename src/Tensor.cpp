@@ -170,11 +170,13 @@ Tensor &Tensor::to(BackendType backend_type) {
             master_tensor->to(MLLM_QNN);
             master_tensor->alloc();
             for (auto &child_tensor : master_tensor->childTensors()) {
-                child_tensor->forceResetHostPointer(this->impl_->host_ptr_);
+                child_tensor->forceResetHostPointer(master_tensor->impl_->host_ptr_);
             }
         } else {
             this->free();
-            module()->activation_tensors[name()]->setBackend(Context::Instance().globalBackends(backend_type));
+            if (module() != nullptr) {
+                module()->activation_tensors[name()]->setBackend(Context::Instance().globalBackends(backend_type));
+            }
             this->setBackend(Context::Instance().globalBackends(backend_type));
         }
         return *this;
