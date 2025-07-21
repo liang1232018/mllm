@@ -27,8 +27,13 @@ class ZeroOrderOptimizer : public Optimizer {
     int vector_idx = 0;                     // Index for the current weight in weights_to_optimize
 
     float loss;
+    float zo_eps = 1e-3;
 
 public:
+    ZeroOrderOptimizer() = default;
+    ZeroOrderOptimizer(float eps) :
+        zo_eps(eps) {
+    }
     virtual ~ZeroOrderOptimizer() = default;
 
     static void registerWeight(Tensor &weight) {
@@ -57,9 +62,9 @@ public:
 
             for (int dim_idx = 0; dim_idx < weight.dimension(); ++dim_idx) {
                 if (type == PERTUR_TYPE::ADD) {
-                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) + perturbation[dim_idx]);
+                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) + (perturbation[dim_idx] * zo_eps));
                 } else if (type == PERTUR_TYPE::SUB) {
-                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) - perturbation[dim_idx]);
+                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) - (perturbation[dim_idx] * zo_eps));
                 }
             }
         }
@@ -72,9 +77,9 @@ public:
 
             for (int dim_idx = 0; dim_idx < weight.dimension(); ++dim_idx) {
                 if (type == PERTUR_TYPE::ADD) {
-                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) - perturbation[dim_idx]);
+                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) - (perturbation[dim_idx] * zo_eps));
                 } else if (type == PERTUR_TYPE::SUB) {
-                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) + perturbation[dim_idx]);
+                    weight.setDataAt<float>(0, 0, vector_idx, dim_idx, weight.d<float>(0, vector_idx, 0, dim_idx) + (perturbation[dim_idx] * zo_eps));
                 }
             }
         }
@@ -162,7 +167,6 @@ public:
     void mobiedit_zero_order_optimization(
         float loss_plus,  // 正向loss
         float loss_minus, // 反向loss
-        float zo_eps = 1e-3,
         float learning_rate = 0.05,
         float max_norm = 1.0) {
         for (int delta_index = 0; delta_index < delta_vec.size(); ++delta_index) {
