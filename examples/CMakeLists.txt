@@ -14,6 +14,7 @@ add_library(MLLM_CORE
 
 macro(func_link_libaries target)
     target_link_libraries(${target} PUBLIC MLLM_CORE MLLM_CPU fmt::fmt-header-only)
+    target_link_libraries(${target} PRIVATE nlohmann_json::nlohmann_json)
     if (MLLM_OPENMP)
         target_compile_options(${target} PRIVATE -fopenmp)
         if (ARM)
@@ -90,15 +91,17 @@ endmacro()
 # func_vlm_add_executable(demo_qwen2_vl)
 # func_vlm_add_executable(demo_showui)
 # # func_vlm_add_executable(demo)
+    func_llm_add_executable(demo_qwen_rome_fwd)
 
 # QNN demo
 
 if(QNN)
     func_llm_add_executable(demo_qwen_npu)
-    func_llm_add_executable(main_qwen_npu)
-    func_llm_add_executable(demo_phonelm_npu)
-    func_llm_add_executable(main_phonelm_npu)
-    func_llm_add_executable(demo_qwen_pipeline)
+    # func_llm_add_executable(main_qwen_npu)
+    # func_llm_add_executable(demo_phonelm_npu)
+    # func_llm_add_executable(main_phonelm_npu)
+    # func_llm_add_executable(demo_qwen_pipeline)
+    # func_llm_add_executable(demo_qwen_rome_fwd)
 
     # single operator TEST examples
     # func_llm_add_executable(test_qnn)
@@ -107,8 +110,8 @@ if(QNN)
     # func_llm_add_executable(test_softmax)
     # func_llm_add_executable(test_quickgelu)
 
-    func_vlm_add_executable(demo_qwen2_vl_npu)
-    func_vlm_add_executable(demo_qwen2_vl_npuvit)
+    # func_vlm_add_executable(demo_qwen2_vl_npu)
+    # func_vlm_add_executable(demo_qwen2_vl_npuvit)
 endif()
 
 

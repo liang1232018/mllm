@@ -149,6 +149,10 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/third_party)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/fmt/include)
 
+# add github.com/nlohmann/json
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/json)
+
 # NOTE: The include below is just for clang to get the include path
 # You can remove those lines if you just want to build mllm instead dev on it.
 include_directories(${PROJECT_SOURCE_DIR}/third_party/pybind11/include)

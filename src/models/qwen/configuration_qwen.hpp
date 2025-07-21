@@ -270,6 +270,7 @@ struct QWenNPUConfig : virtual public QWenConfig {
             tie_embedding_words = false;
         } else if (billionsType == "1.5b-rotated") { // qwen2.5 1.5B rotated model
             shadow_layers = {};
+            rome_layers = {5};
             use_i32_bias = false;
             use_high_precision_silu = true;
         } else if (billionsType == "1.5b-vl-rotated") { // qwen-2-vl rotated model
@@ -283,6 +284,7 @@ struct QWenNPUConfig : virtual public QWenConfig {
     }
 
     std::set<int> shadow_layers;
+    std::set<int> rome_layers;
     // use i32/fp32 bias for Linear in QNN, when using fp32 bias, bias will be added by DequantizeAdd
     bool use_i32_bias = true;
     // there are two types of QNNSiLU, a approximate int version and a (sigmoid * x) version

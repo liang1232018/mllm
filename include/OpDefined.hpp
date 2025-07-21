@@ -86,6 +86,9 @@ enum OpType {
     // for speculative decoding
     ROPETREE,
     CAUSALTREEMASK,
+
+    // for ROME fwd knowledge edit
+    ROMEVECTOR,
 };
 
 static const vector<string> OpNames = {
@@ -160,6 +163,9 @@ static const vector<string> OpNames = {
     "HeadLinear",
     "RoPETree",
     "CausalTreeMask",
+
+    // for ROME fwd knowledge edit
+    "RomeVector",
 };
 
 enum TensorFuncType {

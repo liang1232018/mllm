@@ -773,6 +773,22 @@ public:
     }
 };
 
+class RomeVector final : public Layer {
+public:
+    RomeVector() = default;
+    explicit RomeVector(int batch, int seq, int head, int dim, std::string name) {
+        param_["batch"] = batch;
+        param_["seq"] = seq;
+        param_["head"] = head;
+        param_["dim"] = dim;
+        init(std::move(name), OpType::ROMEVECTOR);
+    }
+    Tensor operator()() {
+        auto ts = run({}, 1);
+        return ts[0];
+    }
+};
+
 class Position final : public Layer {
 public:
     explicit Position(std::string name) {

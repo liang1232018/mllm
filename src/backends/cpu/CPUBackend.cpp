@@ -14,6 +14,7 @@
 #include "op/CPUMultimodalRoPEPipeline.hpp"
 #include "op/CPUNTKRoPE.hpp"
 #include "op/CPUPoEmbedding.hpp"
+#include "op/CPURomeVector.hpp"
 #include "op/CPUSplitInput.hpp"
 #include "op/CPUView.hpp"
 #include "op/CPUAdd.hpp"
@@ -171,6 +172,7 @@ void CPUBackend::registerOps() {
     addCreator(VISIONROPECOS, (CPUBackend::Creator *)(new CPUVisionRoPECosCreator()));
 #ifdef USE_QNN
     addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPEPipelineCreator()));
+    addCreator(ROMEVECTOR, (CPUBackend::Creator *)(new CPURomeVectorCreator()));
 #else
     addCreator(MULTIMODALROPE, (CPUBackend::Creator *)(new CPUMultimodalRoPECreator()));
 #endif
