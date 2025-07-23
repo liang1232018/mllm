@@ -3,6 +3,7 @@
 #include "Tensor.hpp"
 #include <random>
 #include <string>
+#include <sys/cdefs.h>
 
 namespace mllm {
 namespace optim {
@@ -28,10 +29,12 @@ class ZeroOrderOptimizer : public Optimizer {
 
     float loss;
     float zo_eps = 1e-3;
+    float learning_rate = 0.05;
 
 public:
     ZeroOrderOptimizer() = default;
-    ZeroOrderOptimizer(float eps) :
+    ZeroOrderOptimizer(float lr = 0.05, float eps = 1e-3) :
+        learning_rate(lr),
         zo_eps(eps) {
     }
     virtual ~ZeroOrderOptimizer() = default;
@@ -128,8 +131,6 @@ public:
             if (target_idx != -100) {
                 float log_prob = log_probs[i][target_idx];
 
-                std::cout << "log prob for token " << i << " (target " << target_idx << "): " << log_prob << std::endl;
-
                 loss_sum -= log_prob;
                 valid_token_count += 1;
             }
@@ -167,7 +168,6 @@ public:
     void mobiedit_zero_order_optimization(
         float loss_plus,  // 正向loss
         float loss_minus, // 反向loss
-        float learning_rate = 0.05,
         float max_norm = 1.0) {
         for (int delta_index = 0; delta_index < delta_vec.size(); ++delta_index) {
             std::vector<float> &delta = delta_vec[delta_index];
@@ -176,19 +176,17 @@ public:
 
             float grad_coeff = (loss_plus - loss_minus) / (2 * zo_eps);
 
-            std::cout << "Gradient coefficient: " << grad_coeff << std::endl;
-
             for (size_t j = 0; j < dim; ++j) {
                 gradient_est[j] += grad_coeff * delta[j];
             }
 
-            // 更新 delta 向量
+            auto &weight = *weights_to_optimize[delta_index];
             for (size_t j = 0; j < dim; ++j) {
-                delta[j] -= learning_rate * gradient_est[j];
+                weight.setDataAt<float>(0, 0, vector_idx, j, weight.d<float>(0, vector_idx, 0, j) - (learning_rate * gradient_est[j]));
             }
 
             // 范数裁剪
-            clip_norm(delta, max_norm);
+            // clip_norm(delta, max_norm);
         }
     }
 };

@@ -14,139 +14,9 @@
 using namespace mllm;
 using json = nlohmann::json;
 
-class ROMEHyperParams {
-public:
-    // Method
-    bool quantize;
-    bool use_zo;
-    bool use_random_prefix;
-    bool use_eval;
-    std::vector<int> layers;
-    std::string fact_token;
-    int v_num_grad_steps;
-    float v_lr;
-    int v_loss_layer;
-    float v_weight_decay;
-    float clamp_norm_factor;
-    float kl_factor;
-    bool mom2_adjustment;
-    std::vector<std::vector<int>> context_template_length_params;
-
-    // Module templates
-    std::string rewrite_module_tmp;
-    std::string layer_module_tmp;
-    std::string mlp_module_tmp;
-    std::string attn_module_tmp;
-    std::string ln_f_module;
-    std::string lm_head_module;
-
-    // Statistics
-    std::string mom2_dataset;
-    int mom2_n_samples;
-    std::string mom2_dtype;
-    std::string alg_name;
-    int device;
-    std::string model_name;
-    std::string stats_dir;
-
-    // Optional fields with default values
-    int max_length;
-    bool model_parallel;
-    bool fp16;
-
-    // Constructor with default values
-    ROMEHyperParams() :
-        quantize(false), use_zo(false), use_random_prefix(false), use_eval(false),
-        v_num_grad_steps(0), v_lr(0.0f), v_loss_layer(0), v_weight_decay(0.0f),
-        clamp_norm_factor(0.0f), kl_factor(0.0f), mom2_adjustment(false),
-        mom2_n_samples(0), device(0), max_length(40),
-        model_parallel(false), fp16(false) {
-    }
-
-    static ROMEHyperParams from_json(const json &j) {
-        ROMEHyperParams p;
-        j.at("quantize").get_to(p.quantize);
-        j.at("use_zo").get_to(p.use_zo);
-        j.at("use_random_prefix").get_to(p.use_random_prefix);
-        j.at("use_eval").get_to(p.use_eval);
-        j.at("layers").get_to(p.layers);
-        j.at("fact_token").get_to(p.fact_token);
-        j.at("v_num_grad_steps").get_to(p.v_num_grad_steps);
-        j.at("v_lr").get_to(p.v_lr);
-        j.at("v_loss_layer").get_to(p.v_loss_layer);
-        j.at("v_weight_decay").get_to(p.v_weight_decay);
-        j.at("clamp_norm_factor").get_to(p.clamp_norm_factor);
-        j.at("kl_factor").get_to(p.kl_factor);
-        j.at("mom2_adjustment").get_to(p.mom2_adjustment);
-        j.at("context_template_length_params").get_to(p.context_template_length_params);
-        j.at("rewrite_module_tmp").get_to(p.rewrite_module_tmp);
-        j.at("layer_module_tmp").get_to(p.layer_module_tmp);
-        j.at("mlp_module_tmp").get_to(p.mlp_module_tmp);
-        j.at("attn_module_tmp").get_to(p.attn_module_tmp);
-        j.at("ln_f_module").get_to(p.ln_f_module);
-        j.at("lm_head_module").get_to(p.lm_head_module);
-        j.at("mom2_dataset").get_to(p.mom2_dataset);
-        j.at("mom2_n_samples").get_to(p.mom2_n_samples);
-        j.at("mom2_dtype").get_to(p.mom2_dtype);
-        j.at("alg_name").get_to(p.alg_name);
-        j.at("device").get_to(p.device);
-        j.at("model_name").get_to(p.model_name);
-        j.at("stats_dir").get_to(p.stats_dir);
-
-        // Optional fields with defaults
-        if (j.contains("max_length")) j.at("max_length").get_to(p.max_length);
-        if (j.contains("model_parallel")) j.at("model_parallel").get_to(p.model_parallel);
-        if (j.contains("fp16")) j.at("fp16").get_to(p.fp16);
-
-        return p;
-    }
-
-    // Print function for debugging
-    void print() const {
-        std::cout << "ROMEHyperParams: alg_name=" << alg_name
-                  << ", model_name=" << model_name
-                  << ", layers=[";
-        for (auto l : layers) std::cout << l << " ";
-        std::cout << "]" << std::endl;
-    }
-};
-
-int find_subsequence(
-    Tensor &tokens,
-    Tensor &target) {
-    if (target.sequence() > tokens.sequence()) return -1;
-
-    for (size_t i = 0; i <= tokens.sequence() - target.sequence(); ++i) {
-        bool match = true;
-        for (size_t j = 0; j < target.sequence(); ++j) {
-            if (tokens.d<float>(0, i + j, 0, 0) != target.d<float>(0, j, 0, 0)) {
-                match = false;
-                break;
-            }
-        }
-        if (match) return static_cast<int>(i);
-    }
-
-    return -1;
-}
-
 int main(int argc, char **argv) {
     std::ifstream f("../assets/rome_example.json");
     json sample_data = json::parse(f);
-    // for (auto &item : sample_data) {
-    //     std::cout << "Subject: " << item["subject"] << std::endl;
-    //     std::cout << "Target New: " << item["target_new"] << std::endl;
-    //     std::cout << "Prompt: " << item["prompt"] << std::endl;
-    //     std::cout << "Ground Truth: ";
-    //     for (const auto &gt : item["ground_truth"]) {
-    //         std::cout << gt << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
-
-    json hyperParamJson = json::parse(std::ifstream("../assets/rome_hyper_param.json"));
-    ROMEHyperParams hyperParams = ROMEHyperParams::from_json(hyperParamJson);
-    hyperParams.print();
 
     cmdline::parser cmdParser;
     cmdParser.add<string>("vocab", 'v', "specify mllm tokenizer model path", false, "../vocab/qwen2.5_vocab.mllm");
@@ -158,7 +28,7 @@ int main(int argc, char **argv) {
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
     cmdParser.parse_check(argc, argv);
 
-    const int chunk_size = 128; // Set the chunk size for the model
+    const int chunk_size = 32; // Set the chunk size for the model
 
     string vocab_path = cmdParser.get<string>("vocab");
     string merge_path = cmdParser.get<string>("merge");
@@ -178,15 +48,19 @@ int main(int argc, char **argv) {
     // auto decoding_model = QWenForCausalLM(config);
     // decoding_model.load(decoding_model_path);
 
-    mllm::optim::ZeroOrderOptimizer optimizer;
+    mllm::optim::ZeroOrderOptimizer optimizer(0.05, 1e-3);
 
     for (int i = 0; i < sample_data.size(); ++i) {
         // auto input_str = tokenizer.apply_chat_template(in_strs[i]);
         std::string prompt = sample_data[i]["prompt"];
         std::string subject_str = sample_data[i]["subject"];
         std::string target_new_str = sample_data[i]["target_new"];
-
         std::string input_str = prompt + " " + target_new_str;
+
+        std::cout << "[Prompt]: " << prompt << std::endl;
+        std::cout << "[Subject]: " << subject_str << std::endl;
+        std::cout << "[Target New]: " << target_new_str << std::endl;
+        std::cout << "[Input]: " << input_str << std::endl;
 
         // find substr starting 0 and ending with subject_str in prompt
         if (input_str.find(subject_str) == std::string::npos) {
@@ -202,26 +76,23 @@ int main(int argc, char **argv) {
         optimizer.setVectorIdx(edit_idx);
 
         auto pre_target_token = tokenizer.tokenize(prompt + " ", "pre_target");
-        std::cout << "Pre-target token: " << prompt + " " << std::endl;
-
+        std::cout << "[Pre-target token]: " << prompt + " " << std::endl;
         int target_start_idx = pre_target_token.sequence();
-        std::cout << "Target start index: " << target_start_idx << std::endl;
+        std::cout << "[Target start index]: " << target_start_idx << std::endl;
 
-        std::cout << "Input: " << input_str << std::endl;
         auto [real_seq_length, input_tensor] = tokenizer.tokenizeWithPadding(input_str, chunk_size, config.vocab_size);
-
+        std::cout << "[real_seq_length]: " << real_seq_length << std::endl;
         int target_end_length = real_seq_length;
-        std::cout << "Target end length: " << target_end_length << std::endl;
+        std::cout << "[Target end length]: " << target_end_length << std::endl;
 
+        // generate the target tensor mask
         vector<int> mock_target(chunk_size, -100);
         for (int i = target_start_idx; i < target_end_length; ++i) {
-            mock_target[i] = (int)input_tensor.d<float>(0, i, 0, 0);
-            std::cout << "Mock target[" << i << "]: " << mock_target[i] << std::endl;
+            if (i == 0) continue; // skip the first token to avoid out of bounds error
+            // NOTE: LLM performs causal prediction, so the target is the next token
+            mock_target[i - 1] = (int)input_tensor.d<float>(0, i, 0, 0);
+            std::cout << "Mock target[" << i - 1 << "]: " << mock_target[i - 1] << std::endl;
         }
-
-        std::cout << "[Q] " << input_str << std::endl;
-        std::cout << "[A] " << std::flush;
-        std::cout << "real_seq_length: " << real_seq_length << std::endl;
 
         // always turn on switching
         Context::Instance().inference_state().toggleSwitching();
@@ -233,15 +104,34 @@ int main(int argc, char **argv) {
         if (!std::filesystem::exists("qnn_context.bin")) {
             Context::Instance().globalBackends<QNNBackend>(MLLM_QNN)->saveQNNContext();
         }
-
         // freeze the QNN graph for inference, to avoid repeated tensor registration
         Context::Instance().inference_state().setQnnGraphFrozen(true);
 
-        optimizer.initRandomVector();
+        Context::Instance().inference_state().setCurSequenceLength(0);
+        std::cout << "[test before fwd] " << prompt;
+        auto [_, origin_input] = tokenizer.tokenizeWithPadding(prompt, chunk_size, config.vocab_size);
+        LlmTextGeneratorOpts pre_opt{
+            .max_new_tokens = 10,
+            .do_sample = false,
+            .is_padding = true,
+            .seq_before_padding = target_start_idx - 1,
+        };
+        model.generate(origin_input, pre_opt, [&](unsigned int out_token) -> bool {
+            auto out_string = tokenizer.detokenize({out_token});
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { return false; }
+            std::cout << output_string << std::flush;
+            return true;
+        });
+        std::cout << std::endl;
 
-        const int train_step = 5;
+        // NOTE: set the input tensor type to INPUT_TENSOR for refresh the tensor map
+        input_tensor.setTtype(INPUT_TENSOR);
 
+        const int train_step = 100;
         for (int j = 0; j < train_step; j++) {
+            optimizer.initRandomVector();
+
             // h-v forward
             // reset sequence length and execution type
             Context::Instance().inference_state().setCurSequenceLength(0);
@@ -249,7 +139,6 @@ int main(int argc, char **argv) {
             auto result = model({input_tensor});
 
             auto loss_plus = optimizer.compute_nll_loss(result[0], mock_target);
-            std::cout << "Loss Plus: " << loss_plus << std::endl;
 
             optimizer.removePerturbation(mllm::optim::PERTUR_TYPE::ADD);
 
@@ -260,11 +149,34 @@ int main(int argc, char **argv) {
             result = model({input_tensor});
 
             auto loss_minus = optimizer.compute_nll_loss(result[0], mock_target);
-            std::cout << "Loss Minus: " << loss_minus << std::endl;
 
             optimizer.removePerturbation(mllm::optim::PERTUR_TYPE::SUB);
 
+            std::cout << "step " << j << ": loss_plus = " << loss_plus
+                      << ", loss_minus = " << loss_minus << ", loss_diff = " << (loss_plus - loss_minus) << std::endl;
+
             optimizer.mobiedit_zero_order_optimization(loss_plus, loss_minus);
         }
+
+        // validate the edit result
+        std::cout << "[test] " << prompt;
+        Context::Instance().inference_state().setCurSequenceLength(0);
+        LlmTextGeneratorOpts opt{
+            .max_new_tokens = 10,
+            .do_sample = false,
+            .is_padding = true,
+            .seq_before_padding = target_start_idx - 1,
+        };
+        for (int i = target_start_idx - 1; i < chunk_size; ++i) {
+            input_tensor.setDataAt(0, 0, i, 0, (float)config.vocab_size);
+        }
+        model.generate(input_tensor, opt, [&](unsigned int out_token) -> bool {
+            auto out_string = tokenizer.detokenize({out_token});
+            auto [not_end, output_string] = tokenizer.postprocess(out_string);
+            if (!not_end) { return false; }
+            std::cout << output_string << std::flush;
+            return true;
+        });
+        std::cout << std::endl;
     }
 }

@@ -917,11 +917,8 @@ public:
 
     virtual void generate(
         Tensor &input_ids, const LlmTextGeneratorOpts &opt, const std::function<bool(unsigned int)> &call_back = [](unsigned int) -> bool { return true; }) override {
-        auto chatPostProcessing = [](unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
-            tokens_tensor.reshape(1, 1, 1, 1);
-            tokens_tensor.alloc();
-            tokens_tensor.setDataAt<float>(0, 0, 0, 0, token_idx);
-
+        auto chatPostProcessing = [](int seq, unsigned token_idx, Tensor &tokens_tensor, const vector<Tensor *> &clean_tensors) {
+            tokens_tensor.setDataAt<float>(0, 0, seq, 0, token_idx);
             for (auto tensor : clean_tensors) {
                 tensor->reshape(0, 0, 0, 0);
                 tensor->alloc();
@@ -941,13 +938,13 @@ public:
             if (!text_generator_ || text_generator_->type() != LLmTextGeneratorType::kTopkSampling)
                 text_generator_ = std::make_shared<LlmTextGenerator>(LLmTextGeneratorType::kTopkSampling, opt);
         }
-
+        auto local_opt = opt;
         for (int step = 0; step < opt.max_new_tokens; ++step) {
             auto _out = (*this)({input_ids});
-            auto out_token = text_generator_->generate(_out[0], opt);
+            auto out_token = text_generator_->generate(_out[0], local_opt);
             if (!call_back(out_token)) break;
-            chatPostProcessing(out_token, input_ids, {});
-            return;
+            chatPostProcessing(local_opt.seq_before_padding, out_token, input_ids, {});
+            local_opt.seq_before_padding += 1;
         }
     }
 
