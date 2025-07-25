@@ -26,6 +26,9 @@ int main(int argc, char **argv) {
     cmdParser.add<string>("billion", 'b', "[0.5B | 1.8B | 1.5B | [1.5B, 1.8B]-rotated]", false, "1.5B-rotated");
     cmdParser.add<int>("limits", 'l', "max KV cache size", false, 400);
     cmdParser.add<int>("thread", 't', "num of threads", false, 4);
+    cmdParser.add<int>("train-steps", 's', "num of training steps", false, 100);
+    cmdParser.add<int>("group-size", 'g', "num of perturbations per steps", false, 5);
+
     cmdParser.parse_check(argc, argv);
 
     const int chunk_size = 32; // Set the chunk size for the model
@@ -36,7 +39,10 @@ int main(int argc, char **argv) {
     string decoding_model_path = cmdParser.get<string>("decoding-model");
     string model_billion = cmdParser.get<string>("billion");
     int tokens_limit = cmdParser.get<int>("limits");
+    int train_steps = cmdParser.get<int>("train-steps");
+    int group_size = cmdParser.get<int>("group-size");
     CPUBackend::cpu_threads = cmdParser.get<int>("thread");
+    mllm::optim::ZeroOrderOptimizer::group_size = group_size;
 
     auto tokenizer = QWenTokenizer(vocab_path, merge_path);
     QWenNPUConfig config(tokens_limit, "1.5b-rotated", RoPEType::HFHUBROPE);
@@ -48,7 +54,7 @@ int main(int argc, char **argv) {
     // auto decoding_model = QWenForCausalLM(config);
     // decoding_model.load(decoding_model_path);
 
-    mllm::optim::ZeroOrderOptimizer optimizer(0.05, 1e-3);
+    mllm::optim::ZeroOrderOptimizer optimizer(0.05, 1e-3, train_steps);
 
     for (int i = 0; i < sample_data.size(); ++i) {
         // auto input_str = tokenizer.apply_chat_template(in_strs[i]);
@@ -128,34 +134,39 @@ int main(int argc, char **argv) {
         // NOTE: set the input tensor type to INPUT_TENSOR for refresh the tensor map
         input_tensor.setTtype(INPUT_TENSOR);
 
-        const int train_step = 100;
-        for (int j = 0; j < train_step; j++) {
-            optimizer.initRandomVector();
+        std::cout << "[Training] steps: " << train_steps << std::endl;
+        auto group_size = mllm::optim::ZeroOrderOptimizer::group_size;
+        for (int j = 0; j < train_steps; j++) {
+            double loss_plus = 0.0, loss_minus = 0.0;
+            for (int k = 0; k < group_size; ++k) {
+                optimizer.initRandomVector();
+                // h-v forward
+                // reset sequence length and execution type
+                Context::Instance().inference_state().setCurSequenceLength(0);
+                optimizer.applyPerturbation(mllm::optim::PERTUR_TYPE::ADD);
+                auto result = model({input_tensor});
 
-            // h-v forward
-            // reset sequence length and execution type
-            Context::Instance().inference_state().setCurSequenceLength(0);
-            optimizer.applyPerturbation(mllm::optim::PERTUR_TYPE::ADD);
-            auto result = model({input_tensor});
+                loss_plus += optimizer.compute_nll_loss(result[0], mock_target);
 
-            auto loss_plus = optimizer.compute_nll_loss(result[0], mock_target);
+                optimizer.removePerturbation(mllm::optim::PERTUR_TYPE::ADD);
 
-            optimizer.removePerturbation(mllm::optim::PERTUR_TYPE::ADD);
+                // h+v forward
+                // reset sequence length and execution type
+                Context::Instance().inference_state().setCurSequenceLength(0);
+                optimizer.applyPerturbation(mllm::optim::PERTUR_TYPE::SUB);
+                result = model({input_tensor});
 
-            // h+v forward
-            // reset sequence length and execution type
-            Context::Instance().inference_state().setCurSequenceLength(0);
-            optimizer.applyPerturbation(mllm::optim::PERTUR_TYPE::SUB);
-            result = model({input_tensor});
+                loss_minus += optimizer.compute_nll_loss(result[0], mock_target);
 
-            auto loss_minus = optimizer.compute_nll_loss(result[0], mock_target);
+                optimizer.removePerturbation(mllm::optim::PERTUR_TYPE::SUB);
 
-            optimizer.removePerturbation(mllm::optim::PERTUR_TYPE::SUB);
+                optimizer.group_idx = (optimizer.group_idx + 1) % mllm::optim::ZeroOrderOptimizer::group_size;
+            }
 
             std::cout << "step " << j << ": loss_plus = " << loss_plus
                       << ", loss_minus = " << loss_minus << ", loss_diff = " << (loss_plus - loss_minus) << std::endl;
 
-            optimizer.mobiedit_zero_order_optimization(loss_plus, loss_minus);
+            optimizer.mobiedit_zero_order_optimization(loss_plus / group_size, loss_minus / group_size);
         }
 
         // validate the edit result

@@ -24,18 +24,27 @@ public:
 
 class ZeroOrderOptimizer : public Optimizer {
     static vector<Tensor *> weights_to_optimize;
-    static vector<vector<float>> delta_vec; // Perturbation vector
-    int vector_idx = 0;                     // Index for the current weight in weights_to_optimize
+    static vector<vector<vector<float>>> all_layer_perts; // Perturbation vector
+    int vector_idx = 0;                                   // Index for the current weight in weights_to_optimize
 
     float loss;
     float zo_eps = 1e-3;
     float learning_rate = 0.05;
+    int max_iterations = 0, curr_iter = 0;
+
+    std::random_device rd;
+    std::mt19937 gen{42};
+    std::uniform_real_distribution<float> dis{0.0f, 1.0f};
 
 public:
+    static int group_size; // Group size for optimization, default is 1
+    int group_idx = 0;     // Current group index for optimization
+
     ZeroOrderOptimizer() = default;
-    ZeroOrderOptimizer(float lr = 0.05, float eps = 1e-3) :
+    ZeroOrderOptimizer(float lr = 0.05, float eps = 1e-3, int max_iterations = 100) :
         learning_rate(lr),
-        zo_eps(eps) {
+        zo_eps(eps),
+        max_iterations(max_iterations) {
     }
     virtual ~ZeroOrderOptimizer() = default;
 
@@ -43,15 +52,12 @@ public:
         weights_to_optimize.push_back(&weight);
         std::cout << "Registered weight: " << weight.name() << std::endl;
         std::cout << "Weight shape: " << weight.dimension() << std::endl;
-        delta_vec.emplace_back(std::vector<float>(weight.dimension(), 0.0f));
+        all_layer_perts.emplace_back(std::vector<std::vector<float>>(ZeroOrderOptimizer::group_size, std::vector<float>(weight.dimension(), 0.0f)));
     }
 
     void initRandomVector() {
-        std::random_device rd;
-        std::mt19937 gen(42);
-        std::uniform_real_distribution<float> dis(0.0f, 1.0f);
-
-        for (auto &vec : delta_vec) {
+        for (auto &vecs : all_layer_perts) {
+            auto &vec = vecs[group_idx];
             for (auto &val : vec) {
                 val = dis(gen);
             }
@@ -61,7 +67,7 @@ public:
     void applyPerturbation(PERTUR_TYPE type) {
         for (int i = 0; i < weights_to_optimize.size(); ++i) {
             auto &weight = *weights_to_optimize[i];
-            auto &perturbation = delta_vec[i];
+            auto &perturbation = all_layer_perts[i][group_idx];
 
             for (int dim_idx = 0; dim_idx < weight.dimension(); ++dim_idx) {
                 if (type == PERTUR_TYPE::ADD) {
@@ -76,7 +82,7 @@ public:
     void removePerturbation(PERTUR_TYPE type) {
         for (int i = 0; i < weights_to_optimize.size(); ++i) {
             auto &weight = *weights_to_optimize[i];
-            auto &perturbation = delta_vec[i];
+            auto &perturbation = all_layer_perts[i][group_idx];
 
             for (int dim_idx = 0; dim_idx < weight.dimension(); ++dim_idx) {
                 if (type == PERTUR_TYPE::ADD) {
@@ -169,8 +175,22 @@ public:
         float loss_plus,  // 正向loss
         float loss_minus, // 反向loss
         float max_norm = 1.0) {
-        for (int delta_index = 0; delta_index < delta_vec.size(); ++delta_index) {
-            std::vector<float> &delta = delta_vec[delta_index];
+        auto get_learning_rate = [this]() {
+            float cosine_decay = 0.5f * (1.0f + std::cos(M_PI * curr_iter / max_iterations));
+            curr_iter++;
+            return learning_rate * cosine_decay;
+        };
+        auto tmp_lr = get_learning_rate();
+        for (int delta_index = 0; delta_index < all_layer_perts.size(); ++delta_index) {
+            auto &weight = *weights_to_optimize[delta_index];
+
+            std::vector<float> delta(weight.dimension(), 0.0f);
+            for (int i = 0; i < ZeroOrderOptimizer::group_size; ++i) {
+                auto &perturbation = all_layer_perts[delta_index][i];
+                for (size_t j = 0; j < perturbation.size(); ++j) {
+                    delta[j] += perturbation[j];
+                }
+            }
             auto dim = delta.size();
             std::vector<float> gradient_est(dim, 0.0f);
 
@@ -180,9 +200,8 @@ public:
                 gradient_est[j] += grad_coeff * delta[j];
             }
 
-            auto &weight = *weights_to_optimize[delta_index];
             for (size_t j = 0; j < dim; ++j) {
-                weight.setDataAt<float>(0, 0, vector_idx, j, weight.d<float>(0, vector_idx, 0, j) - (learning_rate * gradient_est[j]));
+                weight.setDataAt<float>(0, 0, vector_idx, j, weight.d<float>(0, vector_idx, 0, j) - (tmp_lr * gradient_est[j]));
             }
 
             // 范数裁剪
