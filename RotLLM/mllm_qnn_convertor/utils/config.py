@@ -168,6 +168,23 @@ CONFIG_SCHEMA = {
     }
 }
 
+def validate_config(config: ConfigDict):
+    if config.profile_config.model_config.online_rotation:
+        if not config.profile_config.no_bias:
+            raise ValueError("online_rotation requires no_bias to be true")
+        
+        if config.export_config.quant_bias:
+            raise ValueError("quant_bias cannot be true when online_rotation is enabled")
+        
+    assert config.profile_config.model_config.model_type == config.export_config.model_config.model_type, \
+        "model_type in profile_config and export_config must match"
+        
+    assert config.profile_config.model_config.tokenizer_name == config.export_config.model_config.tokenizer_name, \
+        "tokenizer_name in profile_config and export_config must match"
+        
+    assert config.profile_config.model_config.model_name == config.export_config.model_config.model_name, \
+        "model_name in profile_config and export_config must match"
+
         
 if __name__ == "__main__":
     schema = {

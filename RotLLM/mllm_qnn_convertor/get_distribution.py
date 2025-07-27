@@ -142,7 +142,7 @@ def get_act_distribution_stat(act_dict):
             act_distribution[layer] = get_act_distribution_stat(scales)
     return act_distribution
 
-from utils.config import ConfigDict, CONFIG_SCHEMA
+from utils.config import ConfigDict, CONFIG_SCHEMA, validate_config
 
 from pathlib import Path
 
@@ -159,6 +159,7 @@ if __name__ == "__main__":
     
     config = ConfigDict(json.load(open(args.config_file, "r")))
     config.check_schema(CONFIG_SCHEMA)
+    validate_config(config)
     profile_config = config.profile_config
 
     profile_model_config = profile_config.model_config

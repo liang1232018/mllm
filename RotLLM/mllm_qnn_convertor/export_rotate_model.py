@@ -30,7 +30,7 @@ class RotateModelExporter:
         print(f"Model successfully saved to {output_path}")
 
 
-from utils.config import ConfigDict, CONFIG_SCHEMA
+from utils.config import ConfigDict, CONFIG_SCHEMA, validate_config
 
 from pathlib import Path
 
@@ -47,6 +47,7 @@ if __name__ == "__main__":
     # 从配置文件加载参数
     config = ConfigDict(json.load(open(args.config_file, "r")))
     config.check_schema(CONFIG_SCHEMA)
+    validate_config(config)
     export_config = config.export_config
     model_config = export_config.model_config
     
