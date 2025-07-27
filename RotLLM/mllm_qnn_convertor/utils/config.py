@@ -20,87 +20,73 @@ class ConfigDict(dict):
     def __dir__(self):
         return list(self.keys()) + list(super().__dir__())
     
-    def check_schema(self, schema: dict, path: str = "<root>"):
+    def check_schema(self, schema: dict):
         """
         用 JSON Schema（dict 形式）校验当前 ConfigDict。
         失败时抛 ValueError / TypeError，信息中包含字段路径。
         """
-        def _err(msg):
-            raise ValueError(f"{path}: {msg}")
+        def _check(value, schema, path):
+            def _err(msg):
+                raise ValueError(f"{path}: {msg}")
 
-        # 1. 类型检查
-        type_req = schema.get("type")
-        if type_req == "object":
-            if not isinstance(self, dict):
-                _err(f"expected object, got {type(self).__name__}")
-        elif type_req == "array":
-            if not isinstance(self, list):
-                _err(f"expected array, got {type(self).__name__}")
-        elif type_req in ("string", "integer", "number", "boolean"):
-            if not isinstance(self, {"string": str, "integer": int,
-                                    "number": (int, float),
-                                    "boolean": bool}[type_req]):
-                _err(f"expected {type_req}, got {type(self).__name__}")
+            type_req = schema.get("type")
+            if type_req == "object":
+                if not isinstance(value, dict):
+                    _err(f"expected object, got {type(value).__name__}")
+            elif type_req == "array":
+                if not isinstance(value, list):
+                    _err(f"expected array, got {type(value).__name__}")
+            elif type_req in ("string", "integer", "number", "boolean"):
+                py_type = {"string": str, "integer": int,
+                           "number": (int, float), "boolean": bool}[type_req]
+                if not isinstance(value, py_type):
+                    _err(f"expected {type_req}, got {type(value).__name__}")
 
-        # 2. 对象专用检查
-        if type_req == "object":
-            props = schema.get("properties", {})
-            required = schema.get("required", [])
-            add_prop = schema.get("additionalProperties", True)
+            # ---- object 专用检查 ----
+            if type_req == "object":
+                props       = schema.get("properties", {})
+                required    = schema.get("required", [])
+                allow_extra = schema.get("additionalProperties", True)
 
-            # 2.1 必须字段
-            for k in required:
-                if k not in self:
-                    _err(f"missing required field '{k}'")
+                for k in required:
+                    if k not in value:
+                        _err(f"missing required field '{k}'")
 
-            # 2.2 禁止额外字段
-            if add_prop is False:
-                extra = set(self) - set(props)
-                if extra:
-                    _err(f"unexpected fields {list(extra)}")
+                if allow_extra is False:
+                    extra = set(value) - set(props)
+                    if extra:
+                        _err(f"unexpected fields {list(extra)}")
 
-            # 2.3 递归校验每个子字段
-            for k, sub_schema in props.items():
-                if k in self:
-                    child_path = f"{path}.{k}" if path != "<root>" else k
-                    # 如果是 dict/list，递归；否则直接校验
-                    if isinstance(self[k], dict):
-                        ConfigDict(self[k]).check_schema(sub_schema, child_path)
-                    elif isinstance(self[k], list):
-                        for idx, item in enumerate(self[k]):
-                            if isinstance(item, dict):
-                                ConfigDict(item).check_schema(sub_schema, f"{child_path}[{idx}]")
-                            else:
-                                ConfigDict({"_": item}).check_schema(sub_schema, f"{child_path}[{idx}]")
-                    else:
-                        ConfigDict({"_": self[k]}).check_schema(sub_schema, child_path)
+                for k, sub_schema in props.items():
+                    if k in value:
+                        child_path = f"{path}.{k}" if path != "<root>" else k
+                        _check(value[k], sub_schema, child_path)
 
-        # 3. 数组专用检查（简单版：元素类型递归）
-        if type_req == "array":
-            items_schema = schema.get("items")
-            if items_schema:
-                for idx, item in enumerate(self):
-                    child_path = f"{path}[{idx}]"
-                    if isinstance(item, dict):
-                        ConfigDict(item).check_schema(items_schema, child_path)
-                    else:
-                        ConfigDict({"_": item}).check_schema(items_schema, child_path)
+            # ---- array 专用检查 ----
+            if type_req == "array":
+                items_schema = schema.get("items")
+                if items_schema:
+                    for idx, item in enumerate(value):
+                        child_path = f"{path}[{idx}]"
+                        _check(item, items_schema, child_path)
 
-        # 4. 数值/字符串约束（示例：minimum, maximum, pattern）
-        if isinstance(self, (int, float)):
-            if "minimum" in schema and self < schema["minimum"]:
-                _err(f"value {self} < minimum {schema['minimum']}")
-            if "maximum" in schema and self > schema["maximum"]:
-                _err(f"value {self} > maximum {schema['maximum']}")
+            # ---- 数值 / 字符串约束 ----
+            if isinstance(value, (int, float)):
+                if "minimum" in schema and value < schema["minimum"]:
+                    _err(f"value {value} < minimum {schema['minimum']}")
+                if "maximum" in schema and value > schema["maximum"]:
+                    _err(f"value {value} > maximum {schema['maximum']}")
 
-        if isinstance(self, str) and "pattern" in schema:
-            import re
-            if not re.fullmatch(schema["pattern"], self):
-                _err(f"value '{self}' does not match pattern /{schema['pattern']}/")
+            if isinstance(value, str) and "pattern" in schema:
+                import re
+                if not re.fullmatch(schema["pattern"], value):
+                    _err(f"value '{value}' does not match pattern /{schema['pattern']}/")
 
-        # 5. 枚举值检查
-        if "enum" in schema and self not in schema["enum"]:
-            _err(f"value {self} not in allowed enum {schema['enum']}")
+            # ---- 枚举 ----
+            if "enum" in schema and value not in schema["enum"]:
+                _err(f"value {value} not in allowed enum {schema['enum']}")
+
+        _check(self, schema, "<root>")
             
             
 CONFIG_SCHEMA = {
@@ -129,7 +115,7 @@ CONFIG_SCHEMA = {
                         "tokenizer_name", # path to tokenizer
                         "model_name",     # path to model
                     ],
-                    "additionalProperties": False,
+                    "additionalProperties": True,
 
                     "properties": {
                         "model_type":     {"type": "string"},
@@ -165,7 +151,7 @@ CONFIG_SCHEMA = {
                         "tokenizer_name",
                         "model_name",
                     ],
-                    "additionalProperties": False,
+                    "additionalProperties": True,
 
                     "properties": {
                         "model_type":     {"type": "string"},

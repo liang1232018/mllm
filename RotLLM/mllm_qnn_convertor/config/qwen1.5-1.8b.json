@@ -1,14 +1,14 @@
 {
     "profile_config": {
-        "dataset_path": "path/to/dataset",
-        "output_path": "./dis/qwen1.5-1.8b-dis.json",
-        "num_samples": 32,
+        "dataset_path": "/data/zhanghao/mllm-vit-workspace/profilling_act/assets/pile-val-backup/",
+        "output_path": "./dis/qwen1.5-1.8b-rot-dis.json",
+        "num_samples": 2,
         "no_bias": true,
 
         "model_config": {
             "model_type": "qwen2",
-            "tokenizer_name": "path/to/qwen1.5-1.8b-tokenizer",
-            "model_name": "path/to/qwen1.5-1.8b-model",
+            "tokenizer_name": "/data/share/Qwen1.5-1.8B-Chat",
+            "model_name": "/data/share/Qwen1.5-1.8B-Chat",
 
             "online_rotation": true,
             "random_rotate": true,
@@ -16,7 +16,7 @@
         }
     },
     "export_config": {
-        "scale_file": "./dis/qwen1.5-1.8b-dis.json",
+        "scale_file": "./dis/qwen1.5-1.8b-rot-dis.json",
         "output_model": "./models/qwen1.5-1.8b-qnn.bin",
 
         "t01m_clip_threshold": 64,
@@ -24,11 +24,11 @@
 
         "model_config": {
             "model_type": "qwen2",
-            "tokenizer_name": "path/to/qwen1.5-1.8b-tokenizer",
-            "model_name": "path/to/qwen1.5-1.8b-model",
+            "tokenizer_name": "/data/share/Qwen1.5-1.8B-Chat",
+            "model_name": "/data/share/Qwen1.5-1.8B-Chat",
 
             "online_rotation": true,
-            "R_path": "mllm_qnn_convertor/R/Qwen2-7B-R.bin"
+            "R_path": "./R/qwen1.5-1.8b-rotation-matrix.bin"
         }
     }
 }

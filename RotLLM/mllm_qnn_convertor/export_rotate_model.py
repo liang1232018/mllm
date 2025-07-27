@@ -30,7 +30,14 @@ class RotateModelExporter:
         print(f"Model successfully saved to {output_path}")
 
 
-from utils import ConfigDict
+from utils.config import ConfigDict, CONFIG_SCHEMA
+
+from pathlib import Path
+
+def ensure_parent_dir(path: str | Path) -> None:
+    path = Path(path)
+    target_dir = path.parent if path.suffix else path
+    target_dir.mkdir(parents=True, exist_ok=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -38,15 +45,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 从配置文件加载参数
-    config = json.load(open(args.config_file, "r"))
+    config = ConfigDict(json.load(open(args.config_file, "r")))
+    config.check_schema(CONFIG_SCHEMA)
+    export_config = config.export_config
+    model_config = export_config.model_config
     
-    model_type = config["model_type"]
-    tokenizer_name = config["tokenizer_name"]
-    model_name = config["model_name"]
-    output_model = config.get("output_model", "rotated_model.bin")
-    
-    # 将配置转换为可点号访问的对象
-    model_config = ConfigDict(config.get("model_config", {}))
+    model_type = model_config.model_type
+    tokenizer_name = model_config.tokenizer_name
+    model_name = model_config.model_name
+    output_model = export_config.output_model
+    ensure_parent_dir(output_model)
     
     print("=" * 50)
     print("Rotate Model Export Configuration")
@@ -58,7 +66,7 @@ if __name__ == "__main__":
     print(f"Model config: {model_config}")
     print("=" * 50)
     
-    # 创建模型接口（会自动应用旋转等操作）
+    
     print("Creating model interface...")
     model_interface = ModelFactory.create_model(
         model_type=model_type,
@@ -67,7 +75,6 @@ if __name__ == "__main__":
         args=model_config
     )
     
-    # 创建导出器并导出模型
     print("Creating exporter...")
     exporter = RotateModelExporter(model_interface)
     exporter.export_model(output_model)

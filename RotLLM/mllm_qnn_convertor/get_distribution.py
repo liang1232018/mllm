@@ -144,6 +144,14 @@ def get_act_distribution_stat(act_dict):
 
 from utils.config import ConfigDict, CONFIG_SCHEMA
 
+from pathlib import Path
+
+def ensure_parent_dir(path: str | Path) -> None:
+    path = Path(path)
+    target_dir = path.parent if path.suffix else path
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_file", type=str, default="mllm_qnn_convertor/config/qwen1.5-1.8b.json", help="Path to the config file")
@@ -159,6 +167,7 @@ if __name__ == "__main__":
     model_name = profile_model_config.model_name
     dataset_path = profile_config.dataset_path
     output_file = profile_config.output_path
+    ensure_parent_dir(output_file)
     num_samples = profile_config.get("num_samples", 32)
     no_bias = profile_config.get("no_bias", True)
     
@@ -176,6 +185,9 @@ if __name__ == "__main__":
     print(f"Model Config: {dict(profile_model_config)}")
     print("=" * 60)
     print()
+    
+    if profile_model_config.save_rotation:
+        ensure_parent_dir(profile_model_config.save_rotation)
     
     model_interface = ModelFactory.create_model(
         model_type=model_type,

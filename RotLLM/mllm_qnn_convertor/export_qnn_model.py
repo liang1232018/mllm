@@ -179,6 +179,13 @@ class ModelExporter:
 
 from utils.config import ConfigDict, CONFIG_SCHEMA
 
+from pathlib import Path
+
+def ensure_parent_dir(path: str | Path) -> None:
+    path = Path(path)
+    target_dir = path.parent if path.suffix else path
+    target_dir.mkdir(parents=True, exist_ok=True)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -195,6 +202,8 @@ if __name__ == "__main__":
     model_name = model_config.model_name
     scale_file = export_config.scale_file
     output_model = export_config.output_model
+    
+    ensure_parent_dir(output_model)
     
     print("model:", model_name)
     print("model type:", model_type)
