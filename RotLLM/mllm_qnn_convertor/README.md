@@ -1,84 +1,122 @@
 # MLLM QNN Convertor
 
-In `RotLLM`, use the following command to profile the activation scales of a specific model:
-
+## Install RotLLM
+Use following command to install RotLLM, this package will be used later to rotate models for better performance after quantization.
 ```bash
-python mllm_qnn_convertor/get_distribution_wobias.py --config_file mllm_qnn_convertor/config/get_distribution/Qwen2-get-dis.json
+cd RotLLM # in mllm root directory
+pip install -e .
 ```
 
-The content of the config file should be structured as follows:
+## Profile model
+Currently, QNN only supports static quantization, which means we need to collect the activation distributions of every layer offline.
 
-```json
-{
-    "model_type": "qwen2",
-    "model_name": "path/to/your/model",
-    "tokenizer_name": "path/to/your/tokenizer",
-    "dataset_path": "path/to/your/dataset",
-    "output_file": "mllm_qnn_convertor/scales/Qwen2-7B-Rot_pile_val_dis.json",
-    "num_samples": 64,
-    "model_config": {
-        "online_rotation": true,
-        "random_rotate": true,
-        "save_rotation": "mllm_qnn_convertor/R/Qwen2-7B-R.bin"
-    }
-}
+Use following command to get distribution of a specific model
+```bash
+python get_distribution.py --config_file config/qwen1.5-1.8b.json
 ```
+
+Two example configs are provided in the config directory for `qwen1.5-1.8b` and `showui-2b`.
 
 Currently, we support the following model types: `qwen2` and `qwen2-vl`.
 
 The activation scale information will be saved to the `output_file`, and the randomly generated rotation matrix will be saved to the `save_rotation` file.
+
+The schema of the config file is:
+```python
+{
+    "type": "object",
+    "required": ["profile_config", "export_config"],
+    "additionalProperties": False,
+
+    "properties": {
+        "profile_config": {
+            "type": "object",
+            "required": [
+                "dataset_path", "output_path", "num_samples", "no_bias", "model_config"
+            ],
+            "additionalProperties": False,
+
+            "properties": {
+                "dataset_path": {"type": "string"}, # which dataset to use for profiling
+                "output_path":  {"type": "string"}, # where to save the profiling results
+                "num_samples":  {"type": "integer", "minimum": 2}, # number of samples to use in dataset to profile
+                "no_bias":      {"type": "boolean"}, # if true, we will ignore bias when profiling a linear layer. that is, for a linear layer Wx + b, we will only record the output scale of Wx.
+
+                "model_config": {
+                    "type": "object",
+                    "required": [
+                        "model_type", # currently only support qwen2 and qwen-vl(this is qwen2-vl, not qwen2.5-vl. you can refer to model_interface.py for details)
+                        "tokenizer_name", # path to tokenizer
+                        "model_name",     # path to model
+                    ],
+                    "additionalProperties": True,
+
+                    "properties": {
+                        "model_type":     {"type": "string"},
+                        "tokenizer_name": {"type": "string"},
+                        "model_name":     {"type": "string"},
+                        "online_rotation": {"type": "boolean"}, # rotate after loading model
+                        "random_rotate":   {"type": "boolean"}, # generate random rotation matrix and use it to rotate the model
+                        "save_rotation":   {"type": "string"},  # this is the path to save the rotation matrix
+                        "R_path": {"type": "string"} # if online_rotation is true, rotation matrix from R_path will be used to rotate the model. random_rotate and  R_path and random_rotate are mutually exclusive
+                    }
+                }
+            }
+        },
+
+        "export_config": {
+            "type": "object",
+            "required": [
+                "scale_file", "output_model", "model_config"
+            ],
+            "additionalProperties": False,
+
+            "properties": {
+                "scale_file":        {"type": "string"},
+                "output_model":      {"type": "string"},
+                "t01m_clip_threshold": {"type": "integer"},
+                "quant_bias":        {"type": "boolean"},
+                "clip_all":          {"type": "boolean"}, # if true, t01m_clip_threshold will not be effected
+
+                "model_config": {
+                    "type": "object",
+                    "required": [
+                        "model_type",
+                        "tokenizer_name",
+                        "model_name",
+                    ],
+                    "additionalProperties": True,
+
+                    "properties": {
+                        "model_type":     {"type": "string"},
+                        "tokenizer_name": {"type": "string"},
+                        "model_name":     {"type": "string"},
+                        "online_rotation": {"type": "boolean"},
+                        "random_rotate":   {"type": "boolean"},
+                        "save_rotation":   {"type": "string"},
+                        "R_path": {"type": "string"} # R_path and random_rotate are mutually exclusive
+                    }
+                }
+            }
+        }
+    }
+}
+```
 
 ## Export QNN Model
 
 Use the following command to export a QNN-compatible model:
 
 ```bash
-python mllm_qnn_convertor/export_qnn_model.py --config_file mllm_qnn_convertor/config/export/Qwen2-export-qnn.json
+python export_qnn_model.py --config_file config/qwen1.5-1.8b.json
 ```
-
-The content of the config file should be structured as follows:
-
-```json
-{
-    "model_type": "qwen2",
-    "model_name": "path/to/your/model",
-    "tokenizer_name": "path/to/your/tokenizer",
-    "scale_file": "mllm_qnn_convertor/scales/Qwen2-7B-Rot_pile_val_dis.json",
-    "output_model": "path/to/output/model.bin",
-    "model_config": {
-        "online_rotation": true,
-        "R_path": "mllm_qnn_convertor/R/Qwen2-7B-R.bin"
-    },
-    "export_config": {
-        "t01m_clip_threshold": 64,
-        "quant_bias": false
-    }
-}
-```
-
-The configuration format is similar to the get_distribution config. This command will save a PyTorch state_dict model file. You can then use `mllm/tools/convertor/convertor.py` as usual to generate a QNN MLLM model.
 
 ## Export FP32 Rotated Model
 
 You can also use the following command to export an FP32 rotated model that can be converted to an MLLM CPU model:
 
 ```bash
-python mllm_qnn_convertor/export_rotate_model.py --config_file mllm_qnn_convertor/config/export/Qwen2-export-rotate.json
-```
-
-The content of the config file should be structured as follows:
-
-```json
-{
-    "model_type": "qwen2",
-    "model_name": "path/to/your/model",
-    "tokenizer_name": "path/to/your/tokenizer",
-    "output_model": "path/to/output/rotated_model.bin",
-    "model_config": {
-        "online_rotation": true,
-        "R_path": "mllm_qnn_convertor/R/Qwen2-7B-R.bin"
-    }
-}
+python export_rotate_model.py --config_file config/qwen1.5-1.8b.json
 ```
 
 This will export a rotated model in FP32 format that maintains the full precision while applying the rotation transformations.
