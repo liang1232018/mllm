@@ -28,6 +28,7 @@ fast and lightweight <ins>multimodal LLM</ins> inference engine for mobile and e
 mllm is a lightweight, fast, and easy-to-use (multimodal) on-device LLM inference engine for mobile devices (mainly supporting CPU/NPU), initiated by the research groups led by [Mengwei Xu](https://xumengwei.github.io/) (BUPT) and [Xuanzhe Liu](http://www.liuxuanzhe.com/) (PKU).
 
 ## Recent update
+- [2025 July 30] Add Rotation Quantization method for QNN backend models and support Qwen-2-VL 2B
 - [2024 November 21] Support new model: Phi 3 Vision https://github.com/UbiquitousLearning/mllm/pull/186
 - [2024 August 30] Support new model: MiniCPM 2B https://github.com/UbiquitousLearning/mllm/pull/132
 - [2024 August 15] Support new model: Phi 3 mini https://github.com/UbiquitousLearning/mllm/pull/119
@@ -145,7 +146,12 @@ Building mllm requires following tools:
 
 *`NOTE:` The QNN backend is preliminary version which can do end-to-end inference. It is still under active development for better performance and more supported models.*
 
-We support running Qwen-1.5-1.8B-Chat using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration on devices with Snapdragon 8 Gen3. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
+We support running several Qwen family models including Qwen-2-vl using [Qualcomm QNN](https://www.qualcomm.com/developer/software/qualcomm-ai-engine-direct-sdk) to get Hexagon NPU acceleration on devices with Snapdragon 8 Gen3. The details of QNN environment set up and design is [here](./src/backends/qnn/README.md). The prefilling stage is performered by QNN & CPU, and the inference stage is performed by CPU.
+
+Specifically, we support the following models (similar architecture models are also supported):
+- Qwen 1.5 1.8B (demo_qwen_npu, demo_qwen_pipeline)
+- Qwen 2.5 1.5B (demo_qwen_npu, demo_qwen_pipeline)
+- Qwen 2 VL (demo_qwen2_vl_npu and demo_qwen2_vl_npuvit)
 
 Build the target with QNN backend.
 
@@ -154,7 +160,7 @@ cd ../script
 ./build_qnn_android.sh
 ```
 
-Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions
+Download the model from [here](https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/blob/main/), or using the following instructions to download the model. You can also export Pytorch models for QNN backend with int8 weight quantization and apply rotation quantization. Details can be found in backend specific [README](./src/backends/qnn/README.md).
 
 ```bash
 mkdir ../models && cd ../models
@@ -163,19 +169,19 @@ wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1
 wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1.5-1.8b-chat-q4k.mllm?download=true  -O qwen-1.5-1.8b-chat-q4k.mllm
 ```
 
-Run on an android phone with at least 16GB of memory.
+Currently, QNN backend uses models with W8A8 or W8A16 quantization. (It is determined by Quantize & Dequantize ops in modeling class, you can refer to `src/models/qwen/modeling_qwen_npu_v2.hpp` for more details.)
+
+Run on an android phone with at least 16GB of memory as building the QNN graphs on device will consume a lot of memory. After building and saving QNN graphs to qnn_context.bin, the runtime memory usage will meet the expectation. The `demo_qwen_pipeline.cpp` will show the pipeline parallel execution for QNN models, which will nearly has 1.5x speedup compared with the original execution.
 
 ```bash
 cd ../script
-./run_qwen_npu.sh
+./run_qwen_qnn.sh
 ```
-
-There are two arguments in the executable. `-s` is for the sequence length of prefilling, the default value is 64 in the demo we provided. `-c` for type of QNN prefilling options, when it is set to 1, the input will be splited into many chunks of sequence 32 and be executed in a pipeline. When it is set to 0, the input will be executed in one chunk.
 
 Result are as followed:
 
 ```
-> ./main_qwen_npu -s 64 -c 1
+> ./demo_qwen_npu
 [Q] <|im_start|>system
 You are a helpful assistant.<|im_end|>
 <|im_start|>user

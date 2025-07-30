@@ -1,6 +1,8 @@
-# Qualcomm AI Engine Direct(QNN) backend
+# Qualcomm AI Engine Direct(QNN/QAIRT) backend
 
-Currently, this is only preliminary support and is under active development for better performance and more supported models.
+QNN Backend has supported running 1-3B LLMs and VLMs with full NPU vision encoder offload. Due to the memory constraint of online computation graph building, larger models may not be supported. Also, the QNN backend currently only speedups the prefilling stage of the LLM, thus needing another CPU model to do the decoding stage. Future support for QNN graph switching and decoding is under development. 
+
+Below describes how to set up the QNN environment, compile the QNN op package, convert the model, build and run the project with QNN backend.
 
 ## QNN Environment Set Up
 This section is basically following the QNN documentation, for more details, see: [QNN Linux Setup](https://docs.qualcomm.com/bundle/publicresource/topics/80-63442-50/linux_setup.html).
@@ -35,7 +37,100 @@ make htp_aarch64 && make htp_v75
 
 ## Model Conversion
 
-The model used by QNN prefilling is in int8 format, with static per-tensor quantization. And several 'shadow layer' weights are needed to be added to the model. The Profiling Activation Tools discription is in [tools/convertor/profiling_activation/README.md](../../../tools/convertor/profiling_activation/README.md), you can refer to it for more details.
+The model used by QNN prefilling is in int8 format, with static per-tensor quantization. We have two techniques to improve the accuracy of the model:
+
+**Shadow Outlier Execution**: This technique selectively preserves the precision of specific layers by identifying outlier activations and applying a threshold-based selection (using `t01m_clip_threshold`, which refers to the activation scale threshold after removing the top 0.1% outliers compared to the original scale). By doing so, it accelerates computation on low-precision NPUs while minimizing accuracy loss.
+
+![Shadow Execution](../../../assets/shadow_execution.png)
+
+**Rotation**: Rotation quantization is a technique used to improve model quantization performance by applying rotational transformations to model weights and activations before quantization. This reduces quantization error and improves the accuracy of quantized models.
+
+The rotation quantization process is an implementation of [SpinQuant](https://arxiv.org/abs/2405.16406) and [QuaRot](https://arxiv.org/abs/2404.00456) for different models like Qwen. We are not intented to do exactly the same things as SpinQuant and QuaRot, instead we provide a framework to customize rotation operations for any models you want to use.
+
+![Rotation](../../../assets/rotation.png)
+
+The tools are under `tools/qnn_converter` and `tools/rotation`. Below describes the usage of the tools.
+
+The quantization process consists of three main steps:
+
+1. Profile Activation Distributions: Collect statistical information about layer activations and generate rotation matrices
+2. Export QNN Model: Quantize the model using collected statistics and export in QNN-compatible format
+3. Export FP32 Rotated Model: Export the rotated FP32 model for CPU deployment
+
+Use the get_distribution.py script to collect activation distribution information and generate rotation matrices:
+
+```bash
+# under tools/qnn_converter
+python get_distribution.py --config_file config/qwen1.5-1.8b.json
+```
+
+Example configuration file (config/qwen1.5-1.8b.json):
+```json
+{
+    "profile_config": {
+        "dataset_path": "path/to/pile-val-backup/",
+        "output_path": "./dis/qwen1.5-1.8b-rot-dis.json",
+        "num_samples": 2,
+        "no_bias": true,
+        "model_config": {
+            "model_type": "qwen2",
+            "tokenizer_name": "path/to/Qwen1.5-1.8B-Chat",
+            "model_name": "path/to/Qwen1.5-1.8B-Chat",
+            "online_rotation": true,
+            "random_rotate": true,
+            "save_rotation": "./R/qwen1.5-1.8b-rotation-matrix.bin"
+        }
+    },
+    ...
+}
+```
+
+Key parameters:
+
+- dataset_path: Path to the dataset used for analysis
+- output_path: Path to save activation distribution information
+- num_samples: Number of samples to analyze
+- no_bias: Whether to ignore bias terms
+- online_rotation: Whether to rotate the model online
+- random_rotate: Whether to use random rotation matrices
+- save_rotation: Path to save rotation matrices
+
+Use export_qnn_model.py to export the quantized QNN model:
+```bash
+python export_qnn_model.py --config_file config/qwen1.5-1.8b.json
+```
+
+The export_config section in the configuration file:
+```json
+{
+    ...
+    "export_config": {
+        "scale_file": "./dis/qwen1.5-1.8b-rot-dis.json",
+        "output_model": "./models/qwen1.5-1.8b-qnn.bin",
+        "t01m_clip_threshold": 64,
+        "quant_bias": false,
+        "model_config": {
+            "model_type": "qwen2",
+            "tokenizer_name": "path/to/Qwen1.5-1.8B-Chat",
+            "model_name": "path/to/Qwen1.5-1.8B-Chat",
+            "online_rotation": true,
+            "R_path": "./R/qwen1.5-1.8b-rotation-matrix.bin"
+        }
+    }
+}
+```
+Key parameters:
+
+- scale_file: Path to activation distribution file
+- output_model: Output model path
+- t01m_clip_threshold: Quantization clipping threshold
+- quant_bias: Whether to quantize bias terms
+- R_path: Path to predefined rotation matrix
+
+To export an FP32 rotated model for CPU deployment and performing CPU quantization methods, use:
+```bash
+python export_rotate_model.py --config_file config/qwen1.5-1.8b.json
+```
 
 ## Build & Run
 
@@ -64,12 +159,10 @@ cd ../script
 ./run_qwen_npu.sh
 ```
 
-There are two arguments in the executable. `-s` is for the sequence length of prefilling, the default value is 64 in the demo we provided. `-c` for type of QNN prefilling options, when it is set to 1, the input will be splited into many chunks of sequence 256 and be executed in a pipeline. When it is set to 0, the input will be executed in one chunk.
-
 Result are as followed:
 
 ```
-> ./main_qwen_npu -s 512 -c 1
+> ./demo_qwen_npu
 [Q] <|im_start|>system
 You are a helpful assistant.<|im_end|>
 <|im_start|>user
