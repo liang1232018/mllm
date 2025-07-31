@@ -3,17 +3,17 @@ import torch
 import json
 from typing import Dict, Any
 
-from model_interface import ModelFactory
+from model_interface import ModelFactory, ModelInterface
 from utils.get_input_output_scales import get_clip_and_scale
 
 
 class ModelExporter:
     """通用模型导出器"""
     
-    def __init__(self, model_interface, args):
+    def __init__(self, model_interface: ModelInterface, args):
         self.model_interface = model_interface
         self.args = args
-        self.model = model_interface.model
+        self.model = model_interface.get_model_for_hook()
     
     @torch.no_grad()
     def quantize_weight_per_tensor_absmax(self, w, n_bits=8):
@@ -134,11 +134,13 @@ class ModelExporter:
             
             # 跳过特定层
             if self.should_skip_layer(name):
+                print(f"Skipping {name} as per skip rules")
                 continue
             
             # 不量化的层直接复制
             if not self.should_quantize_layer(name):
                 new_model[name] = param
+                print(f"Skipping quantization for {name} as per special rules")
                 continue
             
             # 权重量化
@@ -187,6 +189,11 @@ def ensure_parent_dir(path: str | Path) -> None:
     target_dir.mkdir(parents=True, exist_ok=True)
 
 
+MODEL_2_VIT_NAME = {
+    "qwen2-vl": "visual"
+}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--config_file", type=str, required=True, help="Path to the config file")
@@ -203,6 +210,12 @@ if __name__ == "__main__":
     model_name = model_config.model_name
     scale_file = export_config.scale_file
     output_model = export_config.output_model
+    
+    if not (export_config.quantize_vit == True):
+        vit_name = MODEL_2_VIT_NAME.get(model_type, None)
+        assert vit_name is not None, f"Model type {model_type} does not have ViT"
+        model_config["special_quantization_rules"] = {}
+        model_config["special_quantization_rules"]["skip_layers"] = {vit_name}
     
     ensure_parent_dir(output_model)
     

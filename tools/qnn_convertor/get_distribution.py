@@ -8,7 +8,7 @@ import numpy as np
 import argparse
 import json
 
-from model_interface import ModelFactory
+from model_interface import ModelFactory, ModelInterface
 
 
 def flatten_act_dict(act_dict):
@@ -47,7 +47,7 @@ def get_act_percentage(act_dict: dict, threshold: float):
 
 @torch.no_grad()
 def get_static_decoder_layer_scales_distribution(
-    model_interface,
+    model_interface: ModelInterface,
     dataset_path,
     num_samples=32,
     no_bias=True,
@@ -91,21 +91,16 @@ def get_static_decoder_layer_scales_distribution(
     dataset = model_interface.load_dataset(dataset_path, split="test")
 
     # 打乱数据集，设置随机种子以确保可重复性  
-    shuffled_dataset = dataset.shuffle(seed=42)  
-
-    # 随机选择前 num_samples 个样本  
-    random_sampled_dataset = shuffled_dataset.select(range(num_samples))  
+    shuffled_dataset = dataset.shuffle(seed=42)   
 
     processed_count = 0
     correct = 0
 
-    with tqdm(total=len(random_sampled_dataset)) as pbar:
+    with tqdm(total=num_samples) as pbar:
         
         pbar.set_description("Processing Dataset:")
-        for data in random_sampled_dataset:
+        for data in shuffled_dataset:
             if model_interface.should_process_sample(data):
-                processed_count += 1
-                
                 # 进行推理
                 inference_result = model_interface.infer(data)
                 
@@ -115,8 +110,12 @@ def get_static_decoder_layer_scales_distribution(
                     correct += 1
                 else:
                     print(f"Sample failed: {data.get('file_name', 'unknown')}")
-                    
-            pbar.update(1)
+                
+                processed_count += 1
+                pbar.update(1)
+            
+            if processed_count >= num_samples:
+                break
         
         if processed_count > 0:
             print(f"Accuracy: {correct / processed_count:.4f} ({correct}/{processed_count})")
