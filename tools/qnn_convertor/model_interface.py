@@ -55,6 +55,13 @@ class ModelInterface(ABC):
         self.args = args
         self.model = None
         self._load_model()
+        self.special_quantization_rules = {}
+        self.skip_layers = {}
+        if args.special_quantization_rules:
+            self.special_quantization_rules = args.special_quantization_rules
+        
+        if args.skip_layers:
+            self.skip_layers = args.skip_layers
     
     @abstractmethod
     def _load_model(self):
@@ -126,8 +133,21 @@ class ModelInterface(ABC):
         """
         return self.model
     
-    @abstractmethod
     def get_skip_layers(self) -> Dict[str, Set[str]]:
+        """
+        获取需要跳过的层
+        
+        Returns:
+            Dict: {"skip_export": set(), "no_clip_input": set(), "no_clip_output": set()}
+        """
+        return {
+            "skip_export": self.skip_layers.get("skip_export", set()) | self._get_skip_layers().get("skip_export", set()),
+            "no_clip_input": self.skip_layers.get("no_clip_input", set()) | self._get_skip_layers().get("no_clip_input", set()),
+            "no_clip_output": self.skip_layers.get("no_clip_output", set()) | self._get_skip_layers().get("no_clip_output", set()),
+        }
+    
+    @abstractmethod
+    def _get_skip_layers(self) -> Dict[str, Set[str]]:
         """
         获取需要跳过的层
         
@@ -136,8 +156,20 @@ class ModelInterface(ABC):
         """
         pass
     
-    @abstractmethod
     def get_special_quantization_rules(self) -> Dict[str, Any]:
+        """
+        获取特殊量化规则
+        
+        Returns:
+            Dict: 特殊量化规则
+        """
+        return {
+            "skip_layers": self.special_quantization_rules.get("skip_layers", set()) | self._get_special_quantization_rules().get("skip_layers", set()),
+            "head_layers": self.special_quantization_rules.get("head_layers", set()) | self._get_special_quantization_rules().get("head_layers", set()),
+        }
+    
+    @abstractmethod
+    def _get_special_quantization_rules(self) -> Dict[str, Any]:
         """
         获取特殊量化规则
         
@@ -160,6 +192,8 @@ class ModelInterface(ABC):
 
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import rotate
 
 @ModelRegistry.register("qwen2")
@@ -222,14 +256,14 @@ class QwenModelInterface(ModelInterface):
     def should_process_sample(self, sample: Dict[str, Any]) -> bool:
         return True
     
-    def get_skip_layers(self) -> Dict[str, Set[str]]:
+    def _get_skip_layers(self) -> Dict[str, Set[str]]:
         return {
             "skip_export": {"vision_tower"},  # 跳过视觉塔
             "no_clip_input": set(),
             "no_clip_output": set(),
         }
     
-    def get_special_quantization_rules(self) -> Dict[str, Any]:
+    def _get_special_quantization_rules(self) -> Dict[str, Any]:
         return {
             "skip_layers": {"lm_head", "merger"},  # 不量化的层
             "head_layers": {"head"},  # head层特殊处理
@@ -237,7 +271,7 @@ class QwenModelInterface(ModelInterface):
 
 
 
-@ModelRegistry.register("qwen-vl")
+@ModelRegistry.register("qwen2-vl")
 class ShowUIModelInterface(ModelInterface):
     """
     ShowUI模型的具体实现
@@ -279,14 +313,14 @@ class ShowUIModelInterface(ModelInterface):
         """获取用于注册hook的模型对象"""
         return self.model.model
     
-    def get_skip_layers(self) -> Dict[str, Set[str]]:
+    def _get_skip_layers(self) -> Dict[str, Set[str]]:
         return {
             "skip_export": {"vision_tower"},
             "no_clip_input": set(),
             "no_clip_output": set(),
         }
     
-    def get_special_quantization_rules(self) -> Dict[str, Any]:
+    def _get_special_quantization_rules(self) -> Dict[str, Any]:
         return {
             "skip_layers": {"lm_head", "merger"},
             "head_layers": {"lm_head"},
@@ -335,3 +369,6 @@ class ModelFactory:
             model_class: 模型类
         """
         ModelRegistry._registry[model_type] = model_class
+
+if __name__ == "__main__":
+    print("Available models:", ModelFactory.get_available_models())

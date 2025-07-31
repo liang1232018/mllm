@@ -1,12 +1,5 @@
 # MLLM QNN Convertor
 
-## Install RotLLM
-Use following command to install RotLLM, this package will be used later to rotate models for better performance after quantization.
-```bash
-cd RotLLM # in mllm root directory
-pip install -e .
-```
-
 ## Profile model
 Currently, QNN only supports static quantization, which means we need to collect the activation distributions of every layer offline.
 
@@ -77,6 +70,8 @@ The schema of the config file is:
                 "t01m_clip_threshold": {"type": "integer"},
                 "quant_bias":        {"type": "boolean"},
                 "clip_all":          {"type": "boolean"}, # if true, t01m_clip_threshold will not be effected
+
+                "quantize_vit":      {"type": "boolean"}, # if true, we will quantize vit model
 
                 "model_config": {
                     "type": "object",

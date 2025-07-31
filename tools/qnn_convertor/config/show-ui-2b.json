@@ -6,7 +6,7 @@
         "no_bias": true,
 
         "model_config": {
-            "model_type": "qwen-vl",
+            "model_type": "qwen2-vl",
             "tokenizer_name": "path/to/Qwen2-VL-2B-Instruct",
             "model_name": "path/to/ShowUI-2B",
 
@@ -23,9 +23,10 @@
 
         "t01m_clip_threshold": 64,
         "quant_bias": false,
+        "quantize_vit": true,
 
         "model_config": {
-            "model_type": "qwen-vl",
+            "model_type": "qwen2-vl",
             "tokenizer_name": "path/to/Qwen2-VL-2B-Instruct",
             "model_name": "path/to/ShowUI-2B",
 

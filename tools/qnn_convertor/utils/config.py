@@ -143,6 +143,8 @@ CONFIG_SCHEMA = {
                 "t01m_clip_threshold": {"type": "integer"},
                 "quant_bias":        {"type": "boolean"},
                 "clip_all":          {"type": "boolean"}, # if true, t01m_clip_threshold will not be effected
+                
+                "quantize_vit":      {"type": "boolean"}, # if true, we will quantize vit model
 
                 "model_config": {
                     "type": "object",

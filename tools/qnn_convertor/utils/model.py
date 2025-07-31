@@ -98,8 +98,8 @@ class LLMNPUShowUIModel:
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             model_name, torch_dtype=torch.float32, device_map="cuda", return_dict_in_generate=True,
         )
-        
-        if args.online_rotate:
+        # print(f"Model loaded: {model}")
+        if args.online_rotation:
             import rotate
             if not args.random_rotate:
                 print(f"load R from {args.R_path}")
