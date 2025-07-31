@@ -71,6 +71,8 @@ The schema of the config file is:
                 "quant_bias":        {"type": "boolean"},
                 "clip_all":          {"type": "boolean"}, # if true, t01m_clip_threshold will not be effected
 
+                "quantize_vit":      {"type": "boolean"}, # if true, we will quantize vit model
+
                 "model_config": {
                     "type": "object",
                     "required": [
