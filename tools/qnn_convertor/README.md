@@ -1,12 +1,5 @@
 # MLLM QNN Convertor
 
-## Install RotLLM
-Use following command to install RotLLM, this package will be used later to rotate models for better performance after quantization.
-```bash
-cd RotLLM # in mllm root directory
-pip install -e .
-```
-
 ## Profile model
 Currently, QNN only supports static quantization, which means we need to collect the activation distributions of every layer offline.
 

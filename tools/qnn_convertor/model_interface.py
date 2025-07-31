@@ -160,6 +160,8 @@ class ModelInterface(ABC):
 
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
+import sys, pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import rotate
 
 @ModelRegistry.register("qwen2")
@@ -335,3 +337,6 @@ class ModelFactory:
             model_class: 模型类
         """
         ModelRegistry._registry[model_type] = model_class
+
+if __name__ == "__main__":
+    print("Available models:", ModelFactory.get_available_models())
