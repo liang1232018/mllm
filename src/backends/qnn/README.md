@@ -127,7 +127,7 @@ Key parameters:
 - quant_bias: Whether to quantize bias terms
 - R_path: Path to predefined rotation matrix
 
-To export an FP32 rotated model for CPU deployment and performing CPU quantization methods, use:
+To export an FP32 rotated .pth model for CPU deployment (still using CPU for decoding, which requires the FP32 rotated model) and performing CPU quantization methods use:
 ```bash
 python export_rotate_model.py --config_file config/qwen1.5-1.8b.json
 ```
