@@ -13,6 +13,7 @@ Two example configs are provided in the config directory for `qwen1.5-1.8b` and 
 Currently, we support the following model types: `qwen2` and `qwen2-vl`.
 
 The activation scale information will be saved to the `output_file`, and the randomly generated rotation matrix will be saved to the `save_rotation` file.
+Note that `online_rotation` should be set to true if we are going to convert an original model that has not been rotated. Otherwise, `online_rotation` should be set to false.
 
 The schema of the config file is:
 ```python
