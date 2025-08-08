@@ -50,6 +50,9 @@ if __name__ == "__main__":
     validate_config(config)
     export_config = config.export_config
     model_config = export_config.model_config
+
+    if model_config.random_rotate and model_config.R_path:
+        raise ValueError("random_rotate and R_path cannot be true at the same time")
     
     model_type = model_config.model_type
     tokenizer_name = model_config.tokenizer_name

@@ -216,6 +216,9 @@ if __name__ == "__main__":
         assert vit_name is not None, f"Model type {model_type} does not have ViT"
         model_config["special_quantization_rules"] = {}
         model_config["special_quantization_rules"]["skip_layers"] = {vit_name}
+
+    if model_config.random_rotate and model_config.R_path:
+        raise ValueError("random_rotation and R_path cannot be true at the same time")
     
     ensure_parent_dir(output_model)
     

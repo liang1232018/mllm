@@ -188,7 +188,10 @@ if __name__ == "__main__":
     
     if profile_model_config.save_rotation:
         ensure_parent_dir(profile_model_config.save_rotation)
-    
+
+    if profile_model_config.random_rotate and profile_model_config.R_path:
+        raise ValueError("random_rotate and R_path cannot be true at the same time")
+
     model_interface = ModelFactory.create_model(
         model_type=model_type,
         tokenizer_name=tokenizer_name,

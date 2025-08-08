@@ -51,7 +51,7 @@ The schema of the config file is:
                         "online_rotation": {"type": "boolean"}, # rotate after loading model
                         "random_rotate":   {"type": "boolean"}, # generate random rotation matrix and use it to rotate the model
                         "save_rotation":   {"type": "string"},  # this is the path to save the rotation matrix
-                        "R_path": {"type": "string"} # if online_rotation is true, rotation matrix from R_path will be used to rotate the model. random_rotate and  R_path and random_rotate are mutually exclusive
+                        "R_path": {"type": "string"} # if online_rotation is true, rotation matrix from R_path will be used to rotate the model. The random_rotate and  R_path are mutually exclusive
                     }
                 }
             }

@@ -78,7 +78,8 @@ Example configuration file (config/qwen1.5-1.8b.json):
             "model_name": "path/to/Qwen1.5-1.8B-Chat",
             "online_rotation": true,
             "random_rotate": true,
-            "save_rotation": "./R/qwen1.5-1.8b-rotation-matrix.bin"
+            "save_rotation": "./R/qwen1.5-1.8b-rotation-matrix.bin",
+            "R_path": "see explanation below"
         }
     },
     ...
@@ -91,9 +92,10 @@ Key parameters:
 - output_path: Path to save activation distribution information
 - num_samples: Number of samples to analyze
 - no_bias: Whether to ignore bias terms
-- online_rotation: Whether to rotate the model online
+- online_rotation: Whether to rotate the model online(rotate after loading model)
 - random_rotate: Whether to use random rotation matrices
 - save_rotation: Path to save rotation matrices
+- R_path: `NOTE` If online_rotation is true, rotation matrix from `R_path` will be used to rotate the model. When specifying the rotation matrix, `random_rotate` and `R_path` are mutually exclusive
 
 Use export_qnn_model.py to export the quantized QNN model:
 ```bash
@@ -125,6 +127,7 @@ Key parameters:
 - output_model: Output model path
 - t01m_clip_threshold: Quantization clipping threshold
 - quant_bias: Whether to quantize bias terms
+- online_rotation: rotate after loading model
 - R_path: Path to predefined rotation matrix
 
 To export an FP32 rotated .pth model for CPU deployment (still using CPU for decoding, which requires the FP32 rotated model) and performing CPU quantization methods use:
