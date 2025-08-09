@@ -92,10 +92,10 @@ Key parameters:
 - output_path: Path to save activation distribution information
 - num_samples: Number of samples to analyze
 - no_bias: Whether to ignore bias terms
-- online_rotation: Whether to rotate the model online(rotate after loading model)
+- online_rotation: Whether to rotate the model online(rotate after loading model). Note that `online_rotation` should be set to true if we are going to convert an original model that has not been rotated. Otherwise, `online_rotation` should be set to false.
 - random_rotate: Whether to use random rotation matrices
 - save_rotation: Path to save rotation matrices
-- R_path: `NOTE` If online_rotation is true, rotation matrix from `R_path` will be used to rotate the model. When specifying the rotation matrix, `random_rotate` and `R_path` are mutually exclusive
+- R_path:  Path to predefined rotation matrix. When specifying the rotation matrix, `random_rotate` and `R_path` are mutually exclusive
 
 Use export_qnn_model.py to export the quantized QNN model:
 ```bash
@@ -131,8 +131,17 @@ Key parameters:
 - R_path: Path to predefined rotation matrix
 
 To export an FP32 rotated .pth model for CPU deployment (still using CPU for decoding, which requires the FP32 rotated model) and performing CPU quantization methods use:
+
 ```bash
 python export_rotate_model.py --config_file config/qwen1.5-1.8b.json
+```
+
+`NOTE` It's recommended to set a new output model path in json file to avoid overwriting the exported .pth model for QNN.
+
+Now you can convert the int8 .pth model to .mllm format:
+
+```bash
+python converter.py --input_model=model.pth --output_model=model.mllm --type=torch
 ```
 
 ## Build & Run
