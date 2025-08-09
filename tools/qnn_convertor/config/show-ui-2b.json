@@ -19,7 +19,7 @@
     },
     "export_config": {
         "scale_file": "./dis/showui_rot_screenqa_nobias_dis.json",
-        "output_model": "path/to/ShowUI-2B-Rot-QNN.bin",
+        "output_model": "path/to/ShowUI-2B-Rot-QNN.pth",
 
         "t01m_clip_threshold": 64,
         "quant_bias": false,

@@ -17,7 +17,7 @@
     },
     "export_config": {
         "scale_file": "./dis/qwen1.5-1.8b-rot-dis.json",
-        "output_model": "./models/qwen1.5-1.8b-qnn.bin",
+        "output_model": "./models/qwen1.5-1.8b-qnn.pth",
 
         "t01m_clip_threshold": 64,
         "quant_bias": false,
