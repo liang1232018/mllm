@@ -211,9 +211,14 @@ if __name__ == "__main__":
     scale_file = export_config.scale_file
     output_model = export_config.output_model
     
-    if not (export_config.quantize_vit == True):
+    assert export_config.quantize_vit is None or model_type in MODEL_2_VIT_NAME, \
+        f"Model type {model_type} does not have quantization config for ViT"
+    
+    # when explicitly set quantize_vit to False
+    # we skip the quantization of ViT layers
+    # if not set or set to true, we don't skip any layer to quantize
+    if export_config.quantize_vit == False:
         vit_name = MODEL_2_VIT_NAME.get(model_type, None)
-        assert vit_name is not None, f"Model type {model_type} does not have ViT"
         model_config["special_quantization_rules"] = {}
         model_config["special_quantization_rules"]["skip_layers"] = {vit_name}
 
