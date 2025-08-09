@@ -98,6 +98,24 @@ The schema of the config file is:
 }
 ```
 
+The flowchart of the profiling process is shown below
+```mermaid
+flowchart TD
+    A[Load Model] --> B{online_rotation?}
+    B -->|Yes| C{random_rotate=True?}
+    B -->|No| E[Load Dataset]
+    C -->|Yes| D1[R:=random rotation matrix]
+    C -->|No| D2{R_path?}
+    C ---|mutually exclusive| D2
+    D2 -->|Exists| D3[R:=rotation matrix from R_path]
+    D2 -->|Not set| E
+    D1 --> F[Apply Rotation R]
+    D3 --> F
+    F --> E
+    E --> G[Feed data to get distribution]
+```
+
+
 ## Export QNN Model
 
 Use the following command to export a QNN-compatible model:
@@ -115,6 +133,23 @@ python export_rotate_model.py --config_file config/qwen1.5-1.8b.json
 ```
 
 This will export a rotated model in FP32 format that maintains the full precision while applying the rotation transformations.
+
+The flowchart of exporting process is shown below
+```mermaid
+flowchart TD
+    A[Load Model] --> B{online_rotation?}
+    B -->|Yes| C{random_rotate=True?}
+    B -->|No| E[Quantize model and save as mllm file]
+    C -->|Yes| D1[R:=random rotation matrix]
+    C -->|No| D2{R_path?}
+    C ---|mutually exclusive| D2
+    D2 -->|Exists| D3[R:=rotation matrix from R_path]
+    D2 -->|Not set| E
+    D1 --> F[Apply Rotation R]
+    D3 --> F
+    F --> E
+```
+
 
 ## Workflow Summary
 
