@@ -49,7 +49,7 @@ The rotation quantization process is an implementation of [SpinQuant](https://ar
 
 ![Rotation](../../../assets/rotation.png)
 
-The tools are under `tools/qnn_converter` and `tools/rotation`. Below describes the usage of the tools.
+The tools are under `tools/qnn_convertor` and `tools/rotation`. Below describes the usage of the tools.
 
 The quantization process consists of three main steps:
 
@@ -63,6 +63,17 @@ Use the get_distribution.py script to collect activation distribution informatio
 # under tools/qnn_converter
 python get_distribution.py --config_file config/qwen1.5-1.8b.json
 ```
+The profiling step requires a representative dataset to collect activation statistics.
+In our example configuration:
+```json
+"profile_config": {
+    "dataset_path": "path/to/pile-val-backup/",
+    ...
+}
+```
+we use a subset of The Pile dataset (pile-val-backup).
+The original hosting site for The Pile (the-eye.eu) has permanently removed the dataset due to copyright concerns.
+You can use uncopyrighted subset of The Pile as a drop-in replacement, which is available on HuggingFace. [pile-uncopyrighted](https://huggingface.co/datasets/monology/pile-uncopyrighted).
 
 Example configuration file (config/qwen1.5-1.8b.json):
 ```json
