@@ -12,7 +12,7 @@ Version requirements:
 * QNN: [Linux v2.34+](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
 * Hexagon SDK: [Linux 5.x](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
 
-**NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/2.31.0.250130` to `src/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `src/backends/qnn/sdk`.
+**NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/v2.34.0.250424` to `src/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `src/backends/qnn/sdk`.
 
 After downloading and installing the two SDKs use "qpm-cli", set up the sdk environment by running the following commands:
 
@@ -60,7 +60,7 @@ The quantization process consists of three main steps:
 Use the get_distribution.py script to collect activation distribution information and generate rotation matrices:
 
 ```bash
-# under tools/qnn_converter
+# under tools/qnn_convertor
 python get_distribution.py --config_file config/qwen1.5-1.8b.json
 ```
 
@@ -195,7 +195,7 @@ wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1
 Run on an android phone with at least 16GB of memory.
 
 ```bash
-cd ../script
+cd ../scripts
 ./run_qwen_qnn.sh
 ```
 If you modify or re-export the model, make sure to delete the old cache file (qnn_context.bin) on your device before running the script again. The cache will be automatically regenerated.
