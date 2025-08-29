@@ -146,7 +146,22 @@ python converter.py --input_model=model.pth --output_model=model.mllm --type=tor
 
 ## Build & Run
 
+Example to modify demo_qwen_npu.cpp:
+```cpp
+{
+    ...
+    cmdParser.add<string>("vocab", 'v',  "specify mllm tokenizer model path", false, "path/to/qwen_vocab.mllm");
+    cmdParser.add<string>("merge", 'e',  "specify mllm merge file path", false, "path/to/qwen_merges.txt");
+    cmdParser.add<string>("qnn-model", 'm', "specify mllm model path", false, "path/to/qwen-1.5-1.8b-chat-int8.mllm");
+    cmdParser.add<string>("decoding-model", '\0', "specify mllm model path", false, "path/to/qwen-1.5-1.8b-chat-q4k.mllm");
+    ...
+    auto tokenizer = QWenTokenizer(vocab_path, merge_path);
+    QWenNPUConfig config(tokens_limit, "1.8B-rotated", RoPEType::HFHUBROPE);
+    auto model = v2::QWenForCausalLM_NPU(config, 256);
+    ...
+}
 
+```
 Build the target with QNN backend.
 
 ```bash
