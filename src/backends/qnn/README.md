@@ -63,6 +63,7 @@ Use the get_distribution.py script to collect activation distribution informatio
 # under tools/qnn_converter
 python get_distribution.py --config_file config/qwen1.5-1.8b.json
 ```
+
 The profiling step requires a representative dataset to collect activation statistics.
 In our example configuration:
 ```json
@@ -73,7 +74,7 @@ In our example configuration:
 ```
 we use a subset of The Pile dataset (pile-val-backup).
 The original hosting site for The Pile (the-eye.eu) has permanently removed the dataset due to copyright concerns.
-You can use uncopyrighted subset of The Pile as a drop-in replacement, which is available on HuggingFace. [pile-uncopyrighted](https://huggingface.co/datasets/monology/pile-uncopyrighted).
+You can use an uncopyrighted subset of The Pile as a drop-in replacement, which is available on HuggingFace:[pile-uncopyrighted](https://huggingface.co/datasets/monology/pile-uncopyrighted).
 
 Example configuration file (config/qwen1.5-1.8b.json):
 ```json
@@ -197,6 +198,7 @@ Run on an android phone with at least 16GB of memory.
 cd ../script
 ./run_qwen_qnn.sh
 ```
+If you modify the model or re-export it, make sure to delete the old cache file (qnn_context.bin) on your device before running the script again.
 
 Result are as followed:
 
