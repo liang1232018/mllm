@@ -146,11 +146,12 @@ python converter.py --input_model=model.pth --output_model=model.mllm --type=tor
 
 ## Build & Run
 
+
 Build the target with QNN backend.
 
 ```bash
-cd ../script
-./build_qnn_android.sh
+cd ../scripts
+./build_android_qnn.sh
 ```
 
 Currently, there are two style of modeling, the Module API and the old implementation. The demo of the Module API is in `examples/demo_qwen_npu.cpp` which is in a **user friendly style**, and the old implementation is in `examples/main_qwen_npu.cpp` which supports **the chunk pipeline prefilling**.
@@ -168,7 +169,7 @@ Run on an android phone with at least 16GB of memory.
 
 ```bash
 cd ../script
-./run_qwen_npu.sh
+./run_qwen_qnn.sh
 ```
 
 Result are as followed:
