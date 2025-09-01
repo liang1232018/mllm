@@ -12,7 +12,7 @@ Version requirements:
 * QNN: [Linux v2.34+](https://qpm.qualcomm.com/#/main/tools/details/qualcomm_neural_processing_sdk)
 * Hexagon SDK: [Linux 5.x](https://qpm.qualcomm.com/#/main/tools/details/HexagonSDK5.x)  (Some accounts may have no permission to access this SDK and may need to contact Qualcomm for support.)
 
-**NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/2.31.0.250130` to `src/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `src/backends/qnn/sdk`.
+**NOTE:** After downloading the QNN SDK, unzip the file and move the folder name like `qairt/v2.34.0.250424` to `src/backends/qnn/` and rename the version to 'sdk'. The folder structure should be like `src/backends/qnn/sdk`.
 
 After downloading and installing the two SDKs use "qpm-cli", set up the sdk environment by running the following commands:
 
@@ -49,7 +49,7 @@ The rotation quantization process is an implementation of [SpinQuant](https://ar
 
 ![Rotation](../../../assets/rotation.png)
 
-The tools are under `tools/qnn_converter` and `tools/rotation`. Below describes the usage of the tools.
+The tools are under `tools/qnn_convertor` and `tools/rotation`. Below describes the usage of the tools.
 
 The quantization process consists of three main steps:
 
@@ -60,9 +60,21 @@ The quantization process consists of three main steps:
 Use the get_distribution.py script to collect activation distribution information and generate rotation matrices:
 
 ```bash
-# under tools/qnn_converter
+# under tools/qnn_convertor
 python get_distribution.py --config_file config/qwen1.5-1.8b.json
 ```
+
+The profiling step requires a representative dataset to collect activation statistics.
+In our example configuration:
+```json
+"profile_config": {
+    "dataset_path": "path/to/pile-val-backup/",
+    ...
+}
+```
+we use a subset of The Pile dataset (pile-val-backup).
+The original hosting site for The Pile (the-eye.eu) has permanently removed the dataset due to copyright concerns.
+You can use an uncopyrighted subset of The Pile as a drop-in replacement, which is available on HuggingFace:[HuggingFace: pile-uncopyrighted](https://huggingface.co/datasets/monology/pile-uncopyrighted).
 
 Example configuration file (config/qwen1.5-1.8b.json):
 ```json
@@ -146,11 +158,27 @@ python converter.py --input_model=model.pth --output_model=model.mllm --type=tor
 
 ## Build & Run
 
+Example to modify demo_qwen_npu.cpp:
+```cpp
+{
+    ...
+    cmdParser.add<string>("vocab", 'v',  "specify mllm tokenizer model path", false, "path/to/qwen_vocab.mllm");
+    cmdParser.add<string>("merge", 'e',  "specify mllm merge file path", false, "path/to/qwen_merges.txt");
+    cmdParser.add<string>("qnn-model", 'm', "specify mllm model path", false, "path/to/qwen-1.5-1.8b-chat-int8.mllm");
+    cmdParser.add<string>("decoding-model", '\0', "specify mllm model path", false, "path/to/qwen-1.5-1.8b-chat-q4k.mllm");
+    ...
+    auto tokenizer = QWenTokenizer(vocab_path, merge_path);
+    QWenNPUConfig config(tokens_limit, "1.8B-rotated", RoPEType::HFHUBROPE);
+    auto model = v2::QWenForCausalLM_NPU(config, 256);
+    ...
+}
+
+```
 Build the target with QNN backend.
 
 ```bash
-cd ../script
-./build_qnn_android.sh
+cd ../scripts
+./build_android_qnn.sh
 ```
 
 Currently, there are two style of modeling, the Module API and the old implementation. The demo of the Module API is in `examples/demo_qwen_npu.cpp` which is in a **user friendly style**, and the old implementation is in `examples/main_qwen_npu.cpp` which supports **the chunk pipeline prefilling**.
@@ -167,9 +195,10 @@ wget https://huggingface.co/mllmTeam/qwen-1.5-1.8b-chat-mllm/resolve/main/qwen-1
 Run on an android phone with at least 16GB of memory.
 
 ```bash
-cd ../script
-./run_qwen_npu.sh
+cd ../scripts
+./run_qwen_qnn.sh
 ```
+If you modify or re-export the model, make sure to delete the old cache file (qnn_context.bin) on your device before running the script again. The cache will be automatically regenerated.
 
 Result are as followed:
 
